@@ -8,7 +8,15 @@
  * Key convention: service = 'rue', account = '<provider-id>'.
  */
 
-import keytar from 'keytar'
+import { createRequire } from 'node:module'
+
+const require = createRequire(import.meta.url)
+let keytar: typeof import('keytar') | undefined
+try {
+  keytar = require('keytar') as typeof import('keytar')
+} catch {
+  // Native keytar is optional on headless Linux/Sandblocks images.
+}
 
 const SERVICE = 'rue'
 
@@ -21,16 +29,16 @@ export interface AuthBackend {
 
 class KeytarBackend implements AuthBackend {
   async get(provider: string): Promise<string | null> {
-    return keytar.getPassword(SERVICE, provider)
+    return keytar!.getPassword(SERVICE, provider)
   }
   async set(provider: string, secret: string): Promise<void> {
-    await keytar.setPassword(SERVICE, provider, secret)
+    await keytar!.setPassword(SERVICE, provider, secret)
   }
   async remove(provider: string): Promise<boolean> {
-    return keytar.deletePassword(SERVICE, provider)
+    return keytar!.deletePassword(SERVICE, provider)
   }
   async all(): Promise<Record<string, string>> {
-    const creds = await keytar.findCredentials(SERVICE)
+    const creds = await keytar!.findCredentials(SERVICE)
     const out: Record<string, string> = {}
     for (const c of creds) out[c.account] = c.password
     return out
@@ -66,16 +74,7 @@ export function getAuthBackend(): AuthBackend {
     cached = new MemoryBackend()
     return cached
   }
-  // Probe keytar with a trivial call. If the native module isn't loadable
-  // (no libsecret on Linux, etc.), fall back to in-memory.
-  try {
-    // `keytar.findCredentials` is the cheapest probe that exercises libsecret.
-    // We don't await here; we only verify the binding loaded.
-    void keytar.findCredentials
-    cached = new KeytarBackend()
-  } catch {
-    cached = new MemoryBackend()
-  }
+  cached = keytar ? new KeytarBackend() : new MemoryBackend()
   return cached
 }
 
