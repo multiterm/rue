@@ -1,0 +1,11 @@
+build: pnpm -r --if-present build
+test: pnpm -r --if-present test
+typecheck: pnpm -r --if-present typecheck
+lint: pnpm -r --if-present lint
+format: prettier --write . --ignore-unknown
+release: pnpm exec m-release --yes
+release-dry: pnpm exec m-release --dry-run
+sandblocks-validate: pnpm exec sandblocks validate .
+deploy: pnpm exec sandblocks sandbox up .
+status: pnpm exec sandblocks sandbox status .
+runway-push: pnpm --filter @multiterm/rue-mobile runway:dev:build-and-push-apk

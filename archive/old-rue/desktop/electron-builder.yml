@@ -1,0 +1,92 @@
+appId: com.superrepo.rue
+productName: Rue
+copyright: Copyright © 2026
+
+directories:
+  output: release/${version}
+  buildResources: build
+
+files:
+  - dist/**/*
+  - package.json
+  - '!**/.DS_Store'
+
+# Bundle the hat mark into the .app's Resources/ so the main process can
+# load it at runtime for the tray icon. The renderer imports its own bundled
+# copies of the SVG assets via Vite's asset graph.
+extraResources:
+  - from: resources@multiterm/rue-hat.png
+    to: rue-hat.png
+
+asar: true
+# Native modules and runtime assets must live OUTSIDE the asar archive so they
+# can be loaded by dlopen / read by tesseract.js workers. Without this,
+# better-sqlite3 throws "could not locate the bindings file" at startup and
+# the entire app boot promise rejects silently.
+asarUnpack:
+  - '**/*.node'
+  - 'node_modules/better-sqlite3/**'
+  - 'node_modules/bindings/**'
+  - 'node_modules/file-uri-to-path/**'
+  - 'node_modules/tesseract.js/**'
+  - 'node_modules/tesseract.js-core/**'
+  - 'node_modules/pdfjs-dist/build/pdf.worker*'
+
+# Disable the publish pipeline entirely. With this null, electron-builder
+# skips updateInfoBuilder, which otherwise crashes with
+# "Cannot read properties of null (reading 'channel')" during cleanup
+# even when `--publish never` is passed on the CLI.
+publish: null
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.png
+  artifactName: Rue-${version}-win-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Rue
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: build/icon.png
+  category: public.app-category.productivity
+  artifactName: Rue-${version}-mac-${arch}.${ext}
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    NSScreenCaptureUsageDescription: Rue captures your screen so the assistant can use what's visible as context.
+    NSAppleEventsUsageDescription: Rue sends Cmd+C to the previously focused app to read your highlighted selection.
+    NSCameraUsageDescription: Rue captures a webcam photo when you (or the assistant) use the camera tool.
+    NSMicrophoneUsageDescription: Rue records audio from your microphone for voice dictation.
+    # Rue runs as a normal Dock app by default. The "Show in Dock" /
+    # "Show in menu bar" settings toggle visibility at runtime via app.dock.
+
+dmg:
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+  window:
+    width: 540
+    height: 400
+
+linux:
+  target: AppImage
+  icon: build/icon.png
+  category: Utility
+  artifactName: Rue-${version}-linux-${arch}.${ext}

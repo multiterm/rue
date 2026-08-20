@@ -1,0 +1,60 @@
+version: 2
+name: multiterm-rue
+
+workspace:
+  image: node:22-bookworm
+  setup: [corepack, pnpm, install, --frozen-lockfile, --config.minimumReleaseAge=0]
+
+tasks:
+  typecheck:
+    command: [corepack, pnpm, typecheck]
+    timeout: 15m
+  test:
+    command: [corepack, pnpm, test]
+    timeout: 15m
+  build:
+    command: [corepack, pnpm, build]
+    timeout: 15m
+    outputs: [packages/apps/core/dist, packages/apps/webapp/dist, packages/apps/site/dist, packages/libs/sdk/dist]
+
+services:
+  api:
+    root: packages/apps/core
+    command: [node, dist/bin.js, serve, --hostname, 0.0.0.0, --port, "4097"]
+    port: 4097
+    health: /health
+    resources: { memory: 1g, cpus: "1" }
+  webapp:
+    root: packages/apps/webapp
+    command: [corepack, pnpm, exec, vite, preview, --host, 0.0.0.0, --port, "4173"]
+    port: 4173
+    health: /
+    resources: { memory: 512m, cpus: "0.5" }
+  site:
+    root: packages/apps/site
+    command: [corepack, pnpm, exec, vite, preview, --host, 0.0.0.0, --port, "4174"]
+    port: 4174
+    health: /
+    resources: { memory: 512m, cpus: "0.5" }
+
+checks:
+  health:
+    image: node:22-bookworm-slim
+    command: [node, -e, "fetch(new URL('/health',process.env.SANDBLOCKS_SERVICE_API_URL)).then(r=>{if(!r.ok)process.exit(1)})"]
+
+environments:
+  preview:
+    pipeline: [build, typecheck, test]
+    services: [api, webapp, site]
+    checks: [health]
+    routing: { sso: false }
+  development:
+    pipeline: [build, typecheck, test]
+    services: [api, webapp, site]
+    checks: [health]
+    routing: { sso: false }
+  production:
+    pipeline: [build, typecheck, test]
+    services: [api, webapp, site]
+    checks: [health]
+    routing: { sso: false }

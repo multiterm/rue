@@ -1,0 +1,7 @@
+{
+  "name": "@rue-archived/webapp",
+  "version": "0.0.0",
+  "description": "Rue web app — browser client built on @multiterm/rue-core.",
+  "private": true,
+  "type": "module"
+}

@@ -1,0 +1,14 @@
+appId: dev.multiterm.rue
+productName: Rue
+directories:
+  output: release
+files:
+  - dist/**
+  - ../webapp/dist/**
+mac:
+  category: public.app-category.productivity
+  target: [dmg, zip]
+win:
+  target: nsis
+linux:
+  target: AppImage

@@ -1,0 +1,8 @@
+{
+  "name": "@rue-archived/cli",
+  "version": "0.0.0",
+  "description": "Rue CLI — a terminal client with an Ink TUI, built on @multiterm/rue-core.",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts"
+}

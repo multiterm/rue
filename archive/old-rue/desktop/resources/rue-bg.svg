@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 560" fill="none" stroke="#ffffff" stroke-linejoin="round">
+  <!-- Decorative treasure-map background: compass, chart grid, coastlines and
+       dashed routes. No avatar — purely the backdrop. -->
+
+  <!-- chart grid -->
+  <g stroke-width="1" opacity="0.5">
+    <path d="M0 80H880 M0 200H880 M0 320H880 M0 440H880" />
+    <path d="M110 0V560 M260 0V560 M450 0V560 M620 0V560 M770 0V560" />
+  </g>
+
+  <!-- faint sextant diagonals -->
+  <g stroke-width="1" opacity="0.32">
+    <path d="M0 560L880 0 M0 0L880 560 M450 0L120 560 M620 0L880 300" />
+  </g>
+
+  <!-- compass rose -->
+  <g transform="translate(152 156)" stroke-width="2">
+    <circle r="80" opacity="0.6" />
+    <circle r="54" opacity="0.4" />
+    <path d="M0 -112L15 -15L0 0L-15 -15Z M0 112L15 15L0 0L-15 15Z M-112 0L-15 -15L0 0L-15 15Z M112 0L15 -15L0 0L15 15Z"
+      fill="#ffffff" opacity="0.85" stroke="none" />
+    <path d="M0 -80V-112 M0 80V112 M-80 0H-112 M80 0H112" opacity="0.7" />
+    <path d="M57 -57L74 -74 M-57 -57L-74 -74 M57 57L74 74 M-57 57L-74 74" opacity="0.45" />
+  </g>
+
+  <!-- coastline outlines -->
+  <g stroke-width="1.6" opacity="0.55">
+    <path d="M602 92c40-18 92-6 120 26 30 34 18 70-20 88-30 14-78 10-104-16-30-30-32-80 4-98Z" />
+    <path d="M694 232c34 4 60 30 58 64-2 40-44 66-86 54-30-8-50-40-44-74 6-34 40-50 72-44Z" />
+    <path d="M118 384c50-26 120-14 150 30 22 32 8 74-34 90-46 18-118 8-146-34-22-32-2-70 30-86Z" />
+  </g>
+
+  <!-- dashed treasure routes -->
+  <g stroke-width="2" stroke-dasharray="2.5 12" stroke-linecap="round" opacity="0.8">
+    <path d="M182 458C322 380 384 300 520 300S722 240 762 152" />
+    <path d="M252 122C382 162 422 242 560 232" />
+  </g>
+
+  <!-- route markers -->
+  <g stroke-width="2.4" stroke-linecap="round" opacity="0.9">
+    <path d="M174 450l16 16 M190 450l-16 16" />
+    <circle cx="762" cy="152" r="7" />
+    <path d="M757 147l10 10 M767 147l-10 10" />
+  </g>
+</svg>

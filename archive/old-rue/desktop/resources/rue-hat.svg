@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- The wide-brim hat the Rue avatar wears, as a flat silhouette for the
+       system-tray icon. A masked band-gap keeps it reading as a hat at 22px. -->
+  <defs>
+    <mask id="hatBand">
+      <rect width="128" height="128" fill="#ffffff" />
+      <path d="M37 73 Q64 82 91 73 L91 80 Q64 89 37 80 Z" fill="#000000" />
+    </mask>
+  </defs>
+  <g fill="#000000" mask="url(#hatBand)">
+    <ellipse cx="64" cy="87" rx="59" ry="13" />
+    <path d="M37 87 C37 58 45 40 64 40 C83 40 91 58 91 87 Z" />
+  </g>
+</svg>

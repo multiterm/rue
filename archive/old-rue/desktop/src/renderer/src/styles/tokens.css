@@ -1,0 +1,86 @@
+/*
+ * Rue design tokens.
+ *
+ * Three theme modes, selected via `data-theme` on the root element:
+ *   (default) / data-theme="dark"  — warm dark
+ *   data-theme="light"             — warm light
+ *   data-theme="glass"             — translucent dark (desktop shows through)
+ *
+ * `--primary` (accent) is overridable at runtime — App.tsx writes it inline
+ * from the user's settings. Everything accent-tinted derives from `--primary`
+ * via color-mix so a custom accent propagates without touching every token.
+ */
+
+:root {
+  /* Brand accent — overridden at runtime by the custom-accent setting. */
+  --primary: #ff8d5c;
+  --primary-foreground: #1a0c04;
+  --tertiary: #e69c05;
+
+  /* Accent-derived — follow --primary automatically. */
+  --accent: color-mix(in srgb, var(--primary) 18%, transparent);
+  --accent-foreground: var(--primary);
+  --ring: var(--primary);
+  --border: color-mix(in srgb, var(--primary) 14%, transparent);
+  --input: color-mix(in srgb, var(--primary) 14%, transparent);
+
+  --radius: 1rem;
+
+  /* ── Dark (default) ───────────────────────────────────────────────── */
+  --background: rgba(22, 18, 15, 0.98);
+  --foreground: #f0f0f2;
+  --secondary: hsl(28 89% 39%);
+  --secondary-foreground: #f0f0f2;
+  --card: rgba(38, 30, 24, 0.6);
+  --card-foreground: #f0f0f2;
+  --popover: rgba(28, 22, 18, 0.98);
+  --popover-foreground: #f0f0f2;
+  --muted: rgba(42, 42, 46, 0.6);
+  --muted-foreground: #8a8a8e;
+  --destructive: hsl(0 70% 60%);
+  --destructive-foreground: #f0f0f2;
+
+  /* Chat + markdown surfaces (themed). */
+  --chat-ai-bg: rgba(36, 30, 26, 0.95);
+  --chat-ai-border: rgba(255, 255, 255, 0.06);
+  --markdown-fg: #fbe8c6;
+  --code-bg: rgba(18, 18, 22, 0.95);
+  --code-fg: #e8d6b8;
+}
+
+/* ── Light ──────────────────────────────────────────────────────────── */
+:root[data-theme='light'] {
+  --background: rgba(250, 248, 245, 0.98);
+  --foreground: #1c1714;
+  --secondary: hsl(28 72% 52%);
+  --secondary-foreground: #1c1714;
+  --card: rgba(255, 255, 255, 0.72);
+  --card-foreground: #1c1714;
+  --popover: rgba(252, 250, 247, 0.99);
+  --popover-foreground: #1c1714;
+  --muted: rgba(20, 16, 12, 0.06);
+  --muted-foreground: #76706a;
+  --destructive: hsl(0 64% 48%);
+  --destructive-foreground: #ffffff;
+
+  --chat-ai-bg: rgba(255, 255, 255, 0.92);
+  --chat-ai-border: rgba(20, 16, 12, 0.08);
+  --markdown-fg: #2a2420;
+  --code-bg: rgba(20, 16, 12, 0.05);
+  --code-fg: #3a322c;
+}
+
+/* ── Glass — warm dark hue, surfaces translucent enough to see through ── */
+:root[data-theme='glass'] {
+  --background: rgba(24, 20, 17, 0.55);
+  --foreground: #f4f2ef;
+  --card: rgba(48, 40, 34, 0.38);
+  --card-foreground: #f4f2ef;
+  --popover: rgba(30, 24, 20, 0.82);
+  --popover-foreground: #f4f2ef;
+  --muted: rgba(70, 64, 58, 0.4);
+  --muted-foreground: #bcb6ae;
+
+  --chat-ai-bg: rgba(42, 35, 30, 0.6);
+  --chat-ai-border: rgba(255, 255, 255, 0.1);
+}

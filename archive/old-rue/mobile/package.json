@@ -1,0 +1,7 @@
+{
+  "name": "@rue-archived/mobile",
+  "version": "0.0.0",
+  "description": "Rue mobile app — built on @multiterm/rue-core.",
+  "private": true,
+  "type": "module"
+}

@@ -1,0 +1,228 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/* Nunito: rounded sans-serif that matches Thuki's UI chrome + prose. */
+@import "@fontsource/nunito/400.css";
+@import "@fontsource/nunito/500.css";
+@import "@fontsource/nunito/600.css";
+@import "@fontsource/nunito/700.css";
+
+/* Scan @super-repo/ui so its class-variance-authority strings are emitted. */
+@source "../../../../../../shared/ui/src/**/*.{ts,tsx}";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans:
+    'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+html, body, #root {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  color: var(--foreground);
+  overflow: hidden;
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  user-select: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Selectable scope — bubble bodies + textarea opt back in. */
+.select-text { user-select: text; }
+
+/* Drag region for the frameless overlay's title bar. */
+.drag { -webkit-app-region: drag; }
+.no-drag { -webkit-app-region: no-drag; }
+
+/* A whole-surface drag region (e.g. the onboarding screen): the surface is
+ * draggable, but interactive descendants opt back out automatically so
+ * clicks/typing still land instead of moving the window. */
+.drag-surface { -webkit-app-region: drag; }
+.drag-surface button,
+.drag-surface a,
+.drag-surface input,
+.drag-surface select,
+.drag-surface textarea,
+.drag-surface [role='button'] { -webkit-app-region: no-drag; }
+
+/* ─── Morphing Container ─────────────────────────────────────────────────
+ * Same surface for ask-bar and chat modes; spring-animated dimensions and
+ * shadow/radius differences differentiate the two visual states. The radial
+ * gradient at the top + hairline glow is Thuki's signature.
+ */
+.morphing-container {
+  will-change: transform;
+  position: relative;
+  background-image:
+    radial-gradient(ellipse 70% 40% at 50% 0%, color-mix(in srgb, var(--primary) 8%, transparent) 0%, transparent 65%);
+  background-color: var(--background);
+  border: 1px solid var(--border);
+  border-top-color: color-mix(in srgb, var(--primary) 20%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  transition:
+    box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.morphing-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 15%;
+  right: 15%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--primary) 35%, transparent), transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.morphing-bar {
+  border-radius: 1.25rem;
+  box-shadow:
+    0 6px 20px -6px rgba(0, 0, 0, 0.6),
+    0 0 0 1px color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.morphing-chat {
+  border-radius: 1rem;
+  box-shadow:
+    0 4px 14px -3px rgba(0, 0, 0, 0.5),
+    0 1px 4px -1px rgba(0, 0, 0, 0.3),
+    0 0 0 1px color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+/* ─── Chat Bubbles ───────────────────────────────────────────────────── */
+.chat-bubble {
+  word-break: break-word;
+  position: relative;
+}
+
+.chat-bubble-user {
+  background: linear-gradient(
+    135deg,
+    var(--primary) 0%,
+    color-mix(in srgb, var(--primary) 72%, #000) 100%
+  );
+  color: #ffffff;
+  box-shadow:
+    0 2px 12px -2px color-mix(in srgb, var(--primary) 30%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.chat-bubble-ai {
+  background: var(--chat-ai-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--chat-ai-border);
+  border-top-color: color-mix(in srgb, var(--primary) 12%, transparent);
+  box-shadow:
+    0 2px 8px -2px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.chat-bubble-error {
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: #fca5a5;
+}
+
+/* ─── Markdown body ──────────────────────────────────────────────────── */
+.markdown-body {
+  font-family: var(--font-sans);
+  color: var(--markdown-fg);
+  font-size: 15.5px;
+  line-height: 1.6;
+  letter-spacing: 0.2px;
+  font-weight: 500;
+}
+
+.markdown-body p { margin: 0.25rem 0; }
+.markdown-body ul { list-style: disc; padding-left: 1.25rem; margin: 0.5rem 0; }
+.markdown-body ol { list-style: decimal; padding-left: 1.25rem; margin: 0.5rem 0; }
+.markdown-body li { margin: 0.2rem 0; }
+.markdown-body a {
+  color: var(--primary);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+}
+.markdown-body code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.92em;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 9%, transparent);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.markdown-body pre {
+  background: var(--code-bg);
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  font-size: 13px;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--primary) 6%, transparent),
+    0 4px 16px -4px rgba(0, 0, 0, 0.5);
+}
+.markdown-body pre code { background: transparent; padding: 0; color: var(--code-fg); }
+.markdown-body .katex-display { overflow-x: auto; max-width: 100%; }
+
+/* ─── Ask-bar textarea ─────────────────────────────────────────────────
+ * Hide native scrollbar so wrapped lines stay aligned with caret position.
+ */
+.askbar-textarea {
+  scrollbar-width: none;
+  background: transparent;
+  border: 0;
+  outline: none;
+  resize: none;
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+  width: 100%;
+}
+.askbar-textarea::-webkit-scrollbar { display: none; }
+.askbar-textarea::placeholder { color: var(--muted-foreground); }
+
+/* ─── Section heading (settings micro-label) ─────────────────────────── */
+.section-heading {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  margin-bottom: 8px;
+}

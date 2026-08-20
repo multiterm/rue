@@ -1,0 +1,11 @@
+{
+  "appId": "rue",
+  "appName": "Rue",
+  "serverUrl": "https://runway.honeycluster.xyz",
+  "buildType": "development",
+  "builds": {
+    "development": { "appName": "Rue (development)", "appVariant": "development", "gradleTask": "assembleDebug", "apkPath": "android/app/build/outputs/apk/debug/app-debug.apk" },
+    "preview": { "appName": "Rue (preview)", "appVariant": "preview", "gradleTask": "assembleRelease", "apkPath": "android/app/build/outputs/apk/release/app-release.apk" },
+    "production": { "appName": "Rue", "appVariant": "production", "gradleTask": "assembleRelease", "apkPath": "android/app/build/outputs/apk/release/app-release.apk" }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@multiterm/rue-sdk",
+  "version": "0.1.0",
+  "description": "Public TypeScript client for the Rue multisurface AI workspace.",
+  "type": "module",
+  "repository": { "type": "git", "url": "git+https://github.com/multiterm/rue.git", "directory": "packages/libs/sdk" },
+  "publishConfig": { "access": "public" },
+  "files": ["dist", "README.md", "LICENSE"],
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": { "typescript": "catalog:", "vitest": "catalog:" }
+}

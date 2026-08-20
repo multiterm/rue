@@ -1,0 +1,27 @@
+packages:
+  - packages/apps/**
+  - packages/libs/**
+
+allowBuilds:
+  better-sqlite3: true
+  electron: true
+  esbuild: true
+  keytar: true
+
+catalog:
+  "@types/node": ^25.8.0
+  "@types/react": ^19.2.16
+  "@types/react-dom": ^19.2.3
+  "@vitejs/plugin-react": ^6.0.2
+  react: ^19.2.7
+  react-dom: ^19.2.3
+  tsx: ^4.22.0
+  typescript: ^6.0.3
+  vite: ^8.2.0
+  vitest: ^4.1.10
+  zod: ^4.4.3
+
+minimumReleaseAge: 0
+minimumReleaseAgeExclude:
+  - "@multiterm/release"
+  - "@sandblocks/cli"

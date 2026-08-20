@@ -1,0 +1,45 @@
+{
+  "name": "interport",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "build": "npm run minify && cd client/ && npm install && npm run build",
+    "minify": "gulp scripts && gulp dependents && gulp plugins",
+    "dev-build": "cd client/ && npm run build",
+    "dev": "set NODE_ENV=development npm run minify && npm run dev-build & node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/whirledlabs/testport-react.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/whirledlabs/testport-react/issues"
+  },
+  "homepage": "https://github.com/whirledlabs/testport-react#readme",
+  "dependencies": {
+    "axios": "^0.21.1",
+    "body-parser": "^1.19.0",
+    "cors": "^2.8.5",
+    "dotenv": "^10.0.0",
+    "express": "^4.17.1",
+    "gulp": "^4.0.2",
+    "gulp-minify": "^3.1.0",
+    "helmet": "^4.6.0",
+    "jsonwebtoken": "^8.5.1",
+    "ua-parser-js": "^0.7.28",
+    "unique-names-generator": "^4.6.0",
+    "ws": "^7.5.3",
+    "xumm-sdk": "^0.6.0"
+  },
+  "devDependencies": {
+    "gulp-concat": "^2.6.1",
+    "gulp-rename": "^2.0.0",
+    "gulp-uglify": "^3.0.2"
+  }
+}
