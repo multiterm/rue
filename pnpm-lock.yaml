@@ -171,6 +171,9 @@ importers:
 
   packages/apps/docs:
     dependencies:
+      '@multiterm/rue-config':
+        specifier: workspace:*
+        version: link:../../libs/config
       '@multiterm/rue-gds':
         specifier: workspace:*
         version: link:../../libs/gds
@@ -278,6 +281,9 @@ importers:
 
   packages/apps/site:
     dependencies:
+      '@multiterm/rue-config':
+        specifier: workspace:*
+        version: link:../../libs/config
       '@multiterm/rue-gds':
         specifier: workspace:*
         version: link:../../libs/gds
@@ -349,6 +355,9 @@ importers:
       '@multiterm/rue-auth':
         specifier: workspace:*
         version: link:../../libs/auth
+      '@multiterm/rue-config':
+        specifier: workspace:*
+        version: link:../../libs/config
       '@multiterm/rue-gds':
         specifier: workspace:*
         version: link:../../libs/gds
@@ -400,6 +409,15 @@ importers:
         version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/libs/auth:
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+
+  packages/libs/config:
     devDependencies:
       typescript:
         specifier: 'catalog:'

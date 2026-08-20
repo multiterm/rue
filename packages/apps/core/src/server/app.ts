@@ -45,9 +45,9 @@ export function createApp(opts: AppOptions): OpenAPIHono<{ Variables: { ctx: Ser
     }),
   )
 
-  app.use('*', keynameAuth(opts.ctx.config.keyname.apiUrl, opts.ctx.config.keyname.clientId))
-  // Retain local-only password support for offline development when Keyname is not configured.
-  if (!opts.ctx.config.keyname.clientId) app.use('*', basicAuth(opts.ctx.config.server.password))
+  app.use('*', keynameAuth(opts.ctx.config.keyname.enabled, opts.ctx.config.keyname.apiUrl, opts.ctx.config.keyname.clientId))
+  // Retain local-only password support for offline development when Keyname is disabled.
+  if (!opts.ctx.config.keyname.enabled) app.use('*', basicAuth(opts.ctx.config.server.password))
 
   // Group mounts. Each sub-app brings its own OpenAPI routes; openapi3 spec
   // is merged when we call .doc() below.

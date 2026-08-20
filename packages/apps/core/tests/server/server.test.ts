@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createApp } from '../../src/server/index.js'
 import { Bus } from '../../src/bus/index.js'
 import { ConfigSchema } from '../../src/config/index.js'
@@ -107,6 +107,32 @@ describe('server: routes', () => {
       'session.updated',
       'session.deleted',
     ])
+  })
+})
+
+describe('server: Keyname auth', () => {
+  it('requires and verifies bearer tokens when enabled', async () => {
+    const ctx = makeCtx()
+    ctx.config.keyname.enabled = true
+    const app = createApp({ ctx })
+    expect((await app.request('/session')).status).toBe(401)
+
+    const verify = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ token: { subject: 'user_1', principalType: 'user' } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    const authenticated = await app.request('/session', {
+      headers: { authorization: 'Bearer keyname-token' },
+    })
+    expect(authenticated.status).toBe(200)
+    expect(verify).toHaveBeenCalledWith(
+      'https://api.keyname.dev/v1/token/verify',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    verify.mockRestore()
+    ctx.db.close()
   })
 })
 

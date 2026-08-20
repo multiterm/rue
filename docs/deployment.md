@@ -12,16 +12,17 @@ Configure secrets through Sandblocks/Pluto or the deployment environment:
 
 ```text
 KEYNAME_API_URL=https://api.keyname.dev
+KEYNAME_AUTH_ENABLED=true
+KEYNAME_API_URL=https://api.keyname.dev
+# Optional API audience for a registered OAuth client:
 KEYNAME_CLIENT_ID=
-KEYNAME_REDIRECT_URI=
 VITE_KEYNAME_API_URL=https://api.keyname.dev
-VITE_KEYNAME_CLIENT_ID=
-VITE_KEYNAME_REDIRECT_URI=
+# Native PKCE still requires a registered public client:
 EXPO_PUBLIC_KEYNAME_API_URL=https://api.keyname.dev
 EXPO_PUBLIC_KEYNAME_CLIENT_ID=
 ```
 
-Client IDs are public. Never place a Keyname client secret in Vite, Expo, or Electron bundles. The core verifies bearer tokens using `KEYNAME_CLIENT_ID` as its audience.
+Browser and Electron surfaces load Keyname `auth.js`; they do not require `VITE_KEYNAME_CLIENT_ID`. Client IDs are public, but client secrets must never be placed in Vite, Expo, or Electron bundles. When configured, the core uses `KEYNAME_CLIENT_ID` as an additional token audience check.
 
 ## Sandblocks
 

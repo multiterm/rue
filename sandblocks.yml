@@ -20,7 +20,7 @@ tasks:
 services:
   api:
     root: packages/apps/core
-    command: [node, dist/bin.js, serve, --hostname, 0.0.0.0, --port, "4097"]
+    command: [env, KEYNAME_AUTH_ENABLED=true, KEYNAME_API_URL=https://api.keyname.dev, node, dist/bin.js, serve, --hostname, 0.0.0.0, --port, "4097"]
     port: 4097
     health: /health
     resources: { memory: 1g, cpus: "1" }

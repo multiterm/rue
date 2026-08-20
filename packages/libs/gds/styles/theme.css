@@ -5,7 +5,7 @@
   --font-display: var(--rue-font-display); --font-sans: var(--rue-font-sans); --font-mono: var(--rue-font-mono);
   --color-background: var(--rue-bg); --color-background-2: var(--rue-bg-2); --color-surface: var(--rue-surface); --color-surface-2: var(--rue-surface-2); --color-elevated: var(--rue-elevated);
   --color-border: var(--rue-border); --color-border-strong: var(--rue-border-strong); --color-foreground: var(--rue-text); --color-muted: var(--rue-muted); --color-subtle: var(--rue-subtle);
-  --color-primary: var(--rue-primary); --color-primary-foreground: var(--rue-primary-contrast); --color-secondary: var(--rue-secondary); --color-accent: var(--rue-accent); --color-danger: var(--rue-danger); --color-warning: var(--rue-warning); --color-success: var(--rue-success);
+  --color-primary: var(--rue-primary); --color-primary-foreground: var(--rue-primary-contrast); --color-secondary: var(--rue-secondary); --color-accent: var(--rue-accent); --color-danger: var(--rue-danger); --color-warning: var(--rue-warning); --color-success: var(--rue-success); --color-control: var(--rue-control); --color-control-foreground: var(--rue-control-foreground);
   --radius-sm: var(--rue-radius-xs); --radius-md: var(--rue-radius-sm); --radius-lg: var(--rue-radius-md); --radius-xl: var(--rue-radius-lg); --radius-2xl: var(--rue-radius-xl);
 }
 @layer base {
@@ -13,5 +13,10 @@
   html { background: var(--rue-bg); color: var(--rue-text); font-family: var(--rue-font-sans); }
   body { min-height: 100vh; margin: 0; background: radial-gradient(circle at 10% -10%,var(--rue-glow-1),transparent 34rem),radial-gradient(circle at 90% 4%,var(--rue-glow-2),transparent 38rem),linear-gradient(180deg,var(--rue-bg),var(--rue-bg-2)); }
   body::before { content:""; position:fixed; inset:0; z-index:-1; pointer-events:none; background-image:linear-gradient(var(--rue-grid) 1px,transparent 1px),linear-gradient(90deg,var(--rue-grid) 1px,transparent 1px); background-size:44px 44px; mask-image:linear-gradient(to bottom,black,transparent 75%); }
+  [data-mode="Primary"] { --rue-control:var(--rue-primary); --rue-control-foreground:var(--rue-primary-contrast); }
+  [data-mode="Secondary"] { --rue-control:var(--rue-muted); --rue-control-foreground:var(--rue-bg); }
+  [data-mode="Warning"] { --rue-control:var(--rue-warning); --rue-control-foreground:#17120b; }
+  [data-mode="Danger"] { --rue-control:var(--rue-danger); --rue-control-foreground:#fff; }
+  [data-mode="Success"] { --rue-control:var(--rue-success); --rue-control-foreground:#07100b; }
   button, input, textarea, select { font: inherit; } a { color: inherit; } ::selection { background: color-mix(in srgb,var(--rue-primary) 35%,transparent); }
 }

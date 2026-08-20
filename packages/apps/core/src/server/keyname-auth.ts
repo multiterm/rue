@@ -10,8 +10,8 @@ interface KeynameClaims {
   audience?: string
 }
 
-export function keynameAuth(apiUrl: string, audience?: string): MiddlewareHandler {
-  if (!audience) return async (_context, next) => next()
+export function keynameAuth(enabled: boolean, apiUrl: string, audience?: string): MiddlewareHandler {
+  if (!enabled) return async (_context, next) => next()
   const endpoint = `${apiUrl.replace(/\/$/, '')}/v1/token/verify`
   return async (context, next) => {
     if (EXEMPT_PATHS.has(context.req.path)) return next()
@@ -23,7 +23,7 @@ export function keynameAuth(apiUrl: string, audience?: string): MiddlewareHandle
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ token, audience }),
+        body: JSON.stringify({ token, ...(audience ? { audience } : {}) }),
       })
       if (response.ok) {
         const body = await response.json() as { token?: KeynameClaims } & KeynameClaims

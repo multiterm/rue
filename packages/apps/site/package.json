@@ -1,6 +1,6 @@
 {
   "name":"@multiterm/rue-site","version":"0.1.0","private":true,"type":"module",
   "scripts":{"dev":"vite","build":"tsc --noEmit && vite build","typecheck":"tsc --noEmit","test":"vitest run --passWithNoTests","lint":"tsc --noEmit"},
-  "dependencies":{"@multiterm/rue-gds":"workspace:*","@multiterm/rue-trpc":"workspace:*","@multiterm/rue-ui":"workspace:*","@tanstack/react-form":"catalog:","@tanstack/react-query":"catalog:","@tanstack/react-router":"catalog:","react":"catalog:","react-dom":"catalog:"},
+  "dependencies":{"@multiterm/rue-config":"workspace:*","@multiterm/rue-gds":"workspace:*","@multiterm/rue-trpc":"workspace:*","@multiterm/rue-ui":"workspace:*","@tanstack/react-form":"catalog:","@tanstack/react-query":"catalog:","@tanstack/react-router":"catalog:","react":"catalog:","react-dom":"catalog:"},
   "devDependencies":{"@tailwindcss/vite":"catalog:","@types/react":"catalog:","@types/react-dom":"catalog:","@vitejs/plugin-react":"catalog:","tailwindcss":"catalog:","typescript":"catalog:","vite":"catalog:","vitest":"catalog:"}
 }

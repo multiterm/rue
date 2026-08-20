@@ -25,11 +25,12 @@ export const ServerConfigSchema = z
 
 export const KeynameConfigSchema = z
   .object({
+    enabled: z.boolean().default(false),
     apiUrl: z.string().url().default('https://api.keyname.dev'),
-    /** OAuth client/audience. Authentication is enforced when configured. */
+    /** Optional OAuth audience for registered confidential/public clients. */
     clientId: z.string().min(1).optional(),
   })
-  .default({ apiUrl: 'https://api.keyname.dev' })
+  .default({ enabled: false, apiUrl: 'https://api.keyname.dev' })
 
 export const ConfigSchema = z
   .object({

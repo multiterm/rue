@@ -6,8 +6,9 @@ import introduction from './content/introduction.md?raw'
 import authentication from './content/authentication.md?raw'
 import designSystem from './content/design-system.md?raw'
 import deployment from './content/deployment.md?raw'
+import {app} from './app'
 export const pages={'/':introduction,'/authentication':authentication,'/design-system':designSystem,'/deployment':deployment} as const
-export const trpc=createRueTrpcClient({baseUrl:import.meta.env.VITE_RUE_API_URL??location.origin})
+export const trpc=createRueTrpcClient({baseUrl:app.urls.api})
 const root=createRootRoute({component:DocsLayout})
 const introductionRoute=createRoute({getParentRoute:()=>root,path:'/',component:()=> <MarkdownPage source={introduction}/>})
 const authenticationRoute=createRoute({getParentRoute:()=>root,path:'/authentication',component:()=> <MarkdownPage source={authentication}/>})
