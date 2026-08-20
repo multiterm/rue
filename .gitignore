@@ -10,3 +10,5 @@ coverage/
 .expo/
 packages/apps/mobile/android/
 packages/apps/mobile/ios/
+# Local upstream snapshots are retained for development but excluded from releases/deploys.
+references/
