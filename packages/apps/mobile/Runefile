@@ -1,0 +1,9 @@
+start: APP_VARIANT=development expo start -c
+android: APP_VARIANT=development expo run:android
+build: tsc --noEmit
+typecheck: tsc --noEmit
+test: vitest run --passWithNoTests
+lint: tsc --noEmit
+runway-assert-remote: node scripts/assert-runway-remote.cjs
+runway-dev-push-apk: node scripts/assert-runway-remote.cjs && RUNWAY_BUILD_TYPE=development runway push
+runway-dev-build-and-push-apk: node scripts/assert-runway-remote.cjs && RUNWAY_BUILD_TYPE=development runway push --assemble

@@ -3,12 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "lint": "tsc -p tsconfig.json --noEmit"
+  "exports": {
+    ".": "./src/index.ts"
   },
   "devDependencies": {
     "typescript": "catalog:",

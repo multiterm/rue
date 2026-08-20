@@ -1,0 +1,6 @@
+dev: RUE_WEBAPP_URL=http://localhost:5173 electron dist/index.js
+build: tsc -p tsconfig.json
+start: electron dist/index.js
+typecheck: tsc -p tsconfig.json --noEmit
+test: vitest run --passWithNoTests
+lint: tsc -p tsconfig.json --noEmit

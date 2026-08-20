@@ -8,19 +8,9 @@
     "url": "git+https://github.com/multiterm/rue.git"
   },
   "packageManager": "pnpm@11.4.0",
-  "scripts": {
-    "build": "pnpm -r --if-present build",
-    "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --if-present test",
-    "lint": "pnpm -r --if-present lint",
-    "release": "m-release --yes",
-    "release:dry": "m-release --dry-run",
-    "sandblocks:validate": "sandblocks validate .",
-    "deploy": "sandblocks sandbox up .",
-    "runway:push": "pnpm --filter @multiterm/rue-mobile runway:dev:build-and-push-apk"
-  },
   "devDependencies": {
     "@multiterm/release": "0.4.1-b.23",
+    "@multiterm/rune": "0.4.1-b.17",
     "@sandblocks/cli": "0.5.0-b.5",
     "@types/node": "^25.8.0",
     "prettier": "^3.8.3",

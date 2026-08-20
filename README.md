@@ -26,9 +26,9 @@ The repository follows the Multiterm/Honeycluster package layout and includes th
 
 ```sh
 pnpm install
-pnpm typecheck
-pnpm test
-pnpm build
+pnpm exec rune typecheck
+pnpm exec rune test
+pnpm exec rune build
 ```
 
 Copy the variable names from [`docs/deployment.md`](./docs/deployment.md) into your secret manager. Never commit Keyname credentials.
@@ -36,11 +36,11 @@ Copy the variable names from [`docs/deployment.md`](./docs/deployment.md) into y
 ## Deploy and release
 
 ```sh
-pnpm exec sandblocks validate .
-pnpm exec sandblocks sandbox up .
-pnpm --filter @multiterm/rue-mobile runway:dev:build-and-push-apk
-pnpm exec m-release --dry-run
-pnpm exec m-release --yes
+pnpm exec rune sandblocks-validate
+pnpm exec rune deploy
+pnpm exec rune runway-push
+pnpm exec rune release-dry
+pnpm exec rune release
 ```
 
 `develop` publishes beta versions; `main` publishes the `latest` npm channel. The public SDK is [`@multiterm/rue-sdk`](./packages/libs/sdk).

@@ -4,13 +4,10 @@
   "private": true,
   "type": "module",
   "main": "dist/index.js",
-  "scripts": {
-    "dev": "RUE_WEBAPP_URL=http://localhost:5173 electron dist/index.js",
-    "build": "tsc -p tsconfig.json",
-    "start": "electron dist/index.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "lint": "tsc -p tsconfig.json --noEmit"
-  },
-  "devDependencies": { "@types/node": "catalog:", "electron": "^41.0.2", "typescript": "catalog:", "vitest": "catalog:" }
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "electron": "^41.0.2",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
 }

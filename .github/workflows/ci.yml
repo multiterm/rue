@@ -22,7 +22,7 @@ jobs:
         with:
           bun-version: latest
       - run: pnpm install --frozen-lockfile --config.minimumReleaseAge=0
-      - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm build
-      - run: pnpm exec sandblocks validate .
+      - run: pnpm exec rune typecheck
+      - run: pnpm exec rune test
+      - run: pnpm exec rune build
+      - run: pnpm exec rune sandblocks-validate

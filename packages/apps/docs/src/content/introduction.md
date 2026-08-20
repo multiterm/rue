@@ -8,9 +8,9 @@ Install and verify the workspace:
 
 ```sh
 pnpm install
-pnpm typecheck
-pnpm test
-pnpm build
+pnpm exec rune typecheck
+pnpm exec rune test
+pnpm exec rune build
 ```
 
 ## Architecture

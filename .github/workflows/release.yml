@@ -20,7 +20,7 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: pnpm
       - run: pnpm install --frozen-lockfile --config.minimumReleaseAge=0
-      - run: pnpm exec m-release --yes
+      - run: pnpm exec rune release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

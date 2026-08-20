@@ -1,0 +1,18 @@
+dev: electron-vite dev
+build: electron-vite build
+build-win: rune build && electron-builder --win --publish never
+build-mac: rune build && electron-builder --mac --publish never
+build-linux: rune build && electron-builder --linux --publish never
+docker-build: ./scripts/docker-build.sh
+build-linux-docker: ./scripts/docker-build.sh linux
+build-win-docker: ./scripts/docker-build.sh win
+build-all-docker: rune build-mac && rune build-linux-docker && rune build-win-docker
+preview: electron-vite preview
+typecheck: tsc -p tsconfig.json --noEmit
+lint: tsc -p tsconfig.json --noEmit
+test: vitest run
+test-watch: vitest
+test-cov: vitest run --coverage
+test-e2e: rune build && playwright test
+test-e2e-install: playwright install --with-deps chromium
+test-e2e-ui: rune build && playwright test --ui

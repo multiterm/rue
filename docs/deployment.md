@@ -29,10 +29,10 @@ Browser and Electron surfaces load Keyname `auth.js`; they do not require `VITE_
 The v2 contract builds and deploys the API, webapp, and landing site in preview, development, and production environments. Validate before deployment:
 
 ```sh
-pnpm exec sandblocks validate .
-pnpm exec sandblocks doctor .
-pnpm exec sandblocks register .
-pnpm exec sandblocks sandbox up .
+pnpm exec rune sandblocks-validate
+pnpm exec rune sandblocks-doctor
+pnpm exec rune sandblocks-register
+pnpm exec rune deploy
 ```
 
 ## Runway
@@ -40,8 +40,8 @@ pnpm exec sandblocks sandbox up .
 The mobile app follows Fuel's variant and APK layout. Install/build the Runway CLI, then:
 
 ```sh
-pnpm --filter @multiterm/rue-mobile android
-pnpm --filter @multiterm/rue-mobile runway:dev:build-and-push-apk
+pnpm --filter @multiterm/rue-mobile exec rune android
+pnpm exec rune runway-push
 ```
 
 The guard script permits only `https://runway.honeycluster.xyz`.

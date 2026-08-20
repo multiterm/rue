@@ -7,13 +7,13 @@ workspace:
 
 tasks:
   typecheck:
-    command: [corepack, pnpm, typecheck]
+    command: [corepack, pnpm, exec, rune, typecheck]
     timeout: 15m
   test:
-    command: [corepack, pnpm, test]
+    command: [corepack, pnpm, exec, rune, test]
     timeout: 15m
   build:
-    command: [corepack, pnpm, build]
+    command: [corepack, pnpm, exec, rune, build]
     timeout: 15m
     outputs: [packages/apps/core/dist, packages/apps/webapp/dist, packages/apps/docs/dist, packages/apps/site/dist, packages/libs/sdk/dist]
 

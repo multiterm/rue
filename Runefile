@@ -1,11 +1,21 @@
-build: pnpm -r --if-present build
-test: pnpm -r --if-present test
-typecheck: pnpm -r --if-present typecheck
-lint: pnpm -r --if-present lint
+build: pnpm -r exec rune build
+test: pnpm -r exec rune test
+typecheck: pnpm -r exec rune typecheck
+lint: pnpm -r exec rune lint
 format: prettier --write . --ignore-unknown
+clean: pnpm -r exec rm -rf dist node_modules && rm -rf node_modules
+
 release: pnpm exec m-release --yes
 release-dry: pnpm exec m-release --dry-run
+hooks-install: pnpm exec m-release hook install .
+hooks-status: pnpm exec m-release hook status .
+
 sandblocks-validate: pnpm exec sandblocks validate .
+sandblocks-doctor: pnpm exec sandblocks doctor .
+sandblocks-register: pnpm exec sandblocks register .
 deploy: pnpm exec sandblocks sandbox up .
+redeploy: pnpm exec sandblocks sandbox redeploy .
 status: pnpm exec sandblocks sandbox status .
-runway-push: pnpm --filter @multiterm/rue-mobile runway:dev:build-and-push-apk
+destroy: pnpm exec sandblocks sandbox down .
+
+runway-push: pnpm --filter @multiterm/rue-mobile exec rune runway-dev-build-and-push-apk

@@ -116,7 +116,7 @@ Settings → Notebooks → **Add folder**. Rue scans the folder (skips `node_mod
 ```bash
 cd packages/apps/rue/desktop
 pnpm install
-pnpm dev
+rune dev
 ```
 
 Opens the overlay. First run will land on the Settings panel — paste your OpenRouter key and pick a model.
@@ -124,7 +124,7 @@ Opens the overlay. First run will land on the Settings panel — paste your Open
 ## Build a Windows .exe
 
 ```bash
-pnpm --filter @multiterm/rue-desktop run build:win
+rune build-win
 ```
 
 Installer lands in `packages/apps/rue/desktop/release/<version>/Rue-<version>-win-x64.exe`. NSIS installer, per-user install by default.
@@ -132,7 +132,7 @@ Installer lands in `packages/apps/rue/desktop/release/<version>/Rue-<version>-wi
 ## Build a macOS .dmg
 
 ```bash
-pnpm --filter @multiterm/rue-desktop run build:mac
+rune build-mac
 ```
 
 Must be run on macOS — `electron-builder` cannot cross-compile a working `.dmg` from Windows or Linux. Produces two DMGs in `release/<version>/`:
@@ -168,7 +168,7 @@ After that, double-click works. To sign + notarize properly, add `CSC_LINK` / `C
 ## Build a Linux AppImage
 
 ```bash
-pnpm --filter @multiterm/rue-desktop run build:linux
+rune build-linux
 ```
 
 Produces `Rue-<version>-linux-${arch}.AppImage`. Requires `xdotool` on the host for the selection-capture chip to work at runtime.
@@ -192,9 +192,9 @@ Three options, in order of cleanliness:
 ```bash
 brew install --cask --no-quarantine wine-stable   # one-time, for the .exe build
 cd packages/apps/rue/desktop
-pnpm build:mac       # native — already proven
-pnpm build:win       # via wine
-pnpm build:linux     # native — works but see APFS caveat below
+rune build-mac       # native — already proven
+rune build-win       # via wine
+rune build-linux     # native — works but see APFS caveat below
 ```
 
 Wine on Apple Silicon runs through Rosetta — works, just slower than on Intel.
@@ -204,11 +204,11 @@ Wine on Apple Silicon runs through Rosetta — works, just slower than on Intel.
 Requires Docker Desktop. The script in `scripts/docker-build.sh` runs `electronuserland/builder:wine` with the workspace copied into a scratch dir so the container's Linux-flavored `node_modules` never touches your Mac's:
 
 ```bash
-pnpm build:mac            # native
-pnpm build:linux:docker   # in container
-pnpm build:win:docker     # in container
+rune build-mac            # native
+rune build-linux-docker   # in container
+rune build-win-docker     # in container
 # or do it all in one shot:
-pnpm build:all:docker
+rune build-all-docker
 ```
 
 Docker caches `~/.cache/electron` and `~/.cache/electron-builder` in named volumes (`rue-build-electron-cache`, `rue-build-builder-cache`) so subsequent builds skip the ~200MB downloads.

@@ -3,17 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "main": "expo-router/entry",
-  "scripts": {
-    "start": "APP_VARIANT=development expo start -c",
-    "android": "APP_VARIANT=development expo run:android",
-    "build": "tsc --noEmit",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "lint": "tsc --noEmit",
-    "runway:assert-remote": "node scripts/assert-runway-remote.cjs",
-    "runway:dev:push-apk": "node scripts/assert-runway-remote.cjs && RUNWAY_BUILD_TYPE=development runway push",
-    "runway:dev:build-and-push-apk": "node scripts/assert-runway-remote.cjs && RUNWAY_BUILD_TYPE=development runway push --assemble"
-  },
   "dependencies": {
     "@multiterm/rue-gds": "workspace:*",
     "expo": "^57.0.2",
@@ -29,5 +18,10 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2"
   },
-  "devDependencies": { "@expo/config": "^57.0.8", "@types/react": "~19.2.17", "typescript": "~6.0.3", "vitest": "catalog:" }
+  "devDependencies": {
+    "@expo/config": "^57.0.8",
+    "@types/react": "~19.2.17",
+    "typescript": "~6.0.3",
+    "vitest": "catalog:"
+  }
 }

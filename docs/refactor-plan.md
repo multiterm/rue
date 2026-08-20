@@ -129,7 +129,7 @@ Every phase ends in a working, demonstrable state.
 
 | # | Phase | Deliverable | Verification |
 |---|-------|-------------|--------------|
-| 0 | **Foundation** | Archive old tree. Create `core/sdk/ui/tui/webui/desktop` empty packages with tsconfigs, package.jsons, workspace wiring, vitest config. Adopt Bun + Hono + Solid in dev tooling. | `pnpm install`, `pnpm typecheck` green, empty test suite passes |
+| 0 | **Foundation** | Archive old tree. Create `core/sdk/ui/tui/webui/desktop` empty packages with tsconfigs, package.jsons, workspace wiring, vitest config. Adopt Bun + Hono + Solid in dev tooling. | `pnpm install`, `pnpm exec rune typecheck` green, empty test suite passes |
 | 1 | **Core skeleton + storage** | `@multiterm/rue-core` boots `rue serve`. SQLite schema for sessions/messages/parts/notebooks/memory/scope/schedule. One-shot migration from old `rue-history.db`. Config loader. Auth-via-keychain. | `rue serve` listens, `GET /doc` returns OpenAPI, migration test passes |
 | 2 | **Provider + session + runQuery** | Lift `anthropic.ts`/`openrouter.ts`/`ollama.ts`/`runQuery.ts`/`compaction.ts`/`spawn.ts` from old renderer into core. Wire to HTTP routes. SSE event stream. | `rue run "hello"` round-trips through core, messages stream |
 | 3 | **Tools** | Lift entire tool registry. Move scope enforcement to core (single source of truth). Built-in tools run server-side. Permission gate via SSE prompt → user response. | Unit tests for every tool passing; permission flow integration test |
