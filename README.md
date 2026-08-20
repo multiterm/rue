@@ -1,6 +1,6 @@
 # Rue
 
-Rue is a multisurface AI workspace for web, React Native, Electron, and terminal clients. Every surface uses Keyname identity and talks to one shared HTTP core.
+Rue is a multisurface AI workspace for web, React Native, Electron, and terminal clients. Every surface uses Keyname identity and talks to one shared HTTP core. Browser sign-in uses Keyname `auth.js` and does not require `VITE_KEYNAME_CLIENT_ID`.
 
 ## Monorepo
 
