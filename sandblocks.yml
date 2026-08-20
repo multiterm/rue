@@ -26,13 +26,13 @@ services:
     resources: { memory: 1g, cpus: "1" }
   webapp:
     root: packages/apps/webapp
-    command: [corepack, pnpm, exec, vite, preview, --host, 0.0.0.0, --port, "4173"]
+    command: [node, ../../../scripts/serve-static.mjs, dist, "4173"]
     port: 4173
     health: /
     resources: { memory: 512m, cpus: "0.5" }
   site:
     root: packages/apps/site
-    command: [corepack, pnpm, exec, vite, preview, --host, 0.0.0.0, --port, "4174"]
+    command: [node, ../../../scripts/serve-static.mjs, dist, "4174"]
     port: 4174
     health: /
     resources: { memory: 512m, cpus: "0.5" }
