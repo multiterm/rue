@@ -1,11 +1,12 @@
 # @multiterm/rue-ui
 
-SolidJS component library + theme tokens + JSON themes shared by `@multiterm/rue-webui` and `@multiterm/rue-tui`.
+Shared shadcn-style React components for Rue web surfaces.
 
-Modeled on `packages/ui` in the opencode reference.
+Components use semantic Tailwind v4 tokens from `@multiterm/rue-gds`, so webapp, docs, site, and Electron share the same palettes and behavior.
 
-## Status
+```tsx
+import { Button, Card, ThemeProvider } from '@multiterm/rue-ui'
+import '@multiterm/rue-gds/styles/theme.css'
+```
 
-Phase 0 scaffold. Phase 6 implements the component library and ports the opencode JSON themes.
-
-See `../docs/refactor-plan.md`.
+Available foundations include buttons, cards, inputs, textareas, badges, and theme controls.

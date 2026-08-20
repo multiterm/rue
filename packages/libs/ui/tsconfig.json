@@ -1,13 +1,1 @@
-{
-  "extends": "../../../tsconfig.json",
-  "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist",
-    "noEmit": true,
-    "jsx": "preserve",
-    "jsxImportSource": "solid-js",
-    "types": ["node"]
-  },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist", "tests"]
-}
+{"extends":"../../../tsconfig.json","compilerOptions":{"rootDir":"src","outDir":"dist","noEmit":true,"jsx":"react-jsx"},"include":["src"],"exclude":["node_modules","dist","tests"]}

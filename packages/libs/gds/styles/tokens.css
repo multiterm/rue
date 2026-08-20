@@ -1,0 +1,8 @@
+:root {
+  --rue-font-display: "Space Grotesk", "Inter Tight", ui-sans-serif, system-ui, sans-serif;
+  --rue-font-sans: "Inter Tight", Inter, ui-sans-serif, system-ui, sans-serif;
+  --rue-font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  --rue-radius-xs: .5rem; --rue-radius-sm: .75rem; --rue-radius-md: 1rem; --rue-radius-lg: 1.4rem; --rue-radius-xl: 1.9rem;
+  --rue-shadow-soft: 0 18px 60px rgb(0 0 0/.16); --rue-shadow-hard: 0 28px 110px rgb(0 0 0/.34);
+  --rue-ease: cubic-bezier(.22,1,.36,1);
+}

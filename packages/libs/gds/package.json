@@ -1,0 +1,16 @@
+{
+  "name": "@multiterm/rue-gds",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Rue design tokens, Tailwind v4 theme, and cross-platform palettes.",
+  "files": ["src", "styles"],
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles/theme.css": "./styles/theme.css",
+    "./styles/tokens.css": "./styles/tokens.css",
+    "./styles/themes.css": "./styles/themes.css"
+  },
+  "scripts": { "build": "tsc -p tsconfig.json", "typecheck": "tsc -p tsconfig.json --noEmit", "test": "vitest run --passWithNoTests", "lint": "tsc -p tsconfig.json --noEmit" },
+  "devDependencies": { "typescript": "catalog:", "vitest": "catalog:" }
+}

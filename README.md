@@ -6,17 +6,21 @@ Rue is a multisurface AI workspace for web, React Native, Electron, and terminal
 
 ```text
 packages/apps/core       Rue API, agent engine, persistence, and CLI
-packages/apps/webapp     React + Vite application
+packages/apps/webapp     TanStack React application
+packages/apps/docs       searchable developer documentation
 packages/apps/mobile     Expo React Native application (Runway-ready)
 packages/apps/desktop    Electron shell for the web application
-packages/apps/site       React landing page
+packages/apps/site       TanStack React landing page
 packages/apps/tui        terminal client
 packages/libs/auth       shared Keyname OAuth/PKCE primitives
+packages/libs/db         Drizzle schema over Rue SQLite
+packages/libs/gds        Tailwind v4 tokens, palettes, and native themes
+packages/libs/trpc       end-to-end typed API and TanStack clients
 packages/libs/sdk        public @multiterm/rue-sdk package
-packages/libs/ui         shared UI primitives
+packages/libs/ui         shared shadcn-style React components
 ```
 
-The repository follows the Multiterm/Honeycluster package layout and includes the Sandblocks v2 deployment contract in [`sandblocks.yml`](./sandblocks.yml).
+The repository follows the Multiterm/Honeycluster package layout and includes the Sandblocks v2 deployment contract in [`sandblocks.yml`](./sandblocks.yml). Web surfaces standardize on TanStack Router, Query, and Form with tRPC; server persistence exposes a Drizzle ORM facade over the existing SQLite connection.
 
 ## Development
 

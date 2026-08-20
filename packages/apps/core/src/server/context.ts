@@ -1,6 +1,7 @@
 import type { Database } from 'better-sqlite3'
 import type { Config } from '../config/index.js'
 import type { Bus } from '../bus/index.js'
+import type { RueDatabase } from '@multiterm/rue-db'
 
 /**
  * Per-server runtime context. Threaded through Hono via `c.var.ctx`.
@@ -11,6 +12,8 @@ import type { Bus } from '../bus/index.js'
  */
 export interface ServerContext {
   db: Database
+  /** Drizzle ORM facade over the same SQLite connection used by legacy stores. */
+  orm?: RueDatabase
   config: Config
   bus: Bus
 }

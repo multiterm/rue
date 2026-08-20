@@ -1,0 +1,7 @@
+{
+  "name":"@multiterm/rue-trpc","version":"0.1.0","private":true,"type":"module","description":"End-to-end typed Rue API router.",
+  "exports":{".":{"types":"./src/index.ts","default":"./dist/index.js"},"./client":{"types":"./src/client.ts","default":"./dist/client.js"}},
+  "scripts":{"build":"tsc -p tsconfig.json","typecheck":"tsc -p tsconfig.json --noEmit","test":"vitest run --passWithNoTests","lint":"tsc -p tsconfig.json --noEmit"},
+  "dependencies":{"@multiterm/rue-db":"workspace:*","@tanstack/react-query":"catalog:","@trpc/client":"catalog:","@trpc/server":"catalog:","drizzle-orm":"^0.44.5","superjson":"catalog:","zod":"catalog:"},
+  "devDependencies":{"typescript":"catalog:","vitest":"catalog:"}
+}

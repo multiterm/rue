@@ -1,38 +1,15 @@
-import { StrictMode, useEffect, useMemo, useState } from 'react'
-import { createRoot } from 'react-dom/client'
-import { browserAuthStorage, createKeynameAuth, type KeynameTokenSet } from '@multiterm/rue-auth'
 import './styles.css'
-
-const config = {
-  apiUrl: import.meta.env.VITE_KEYNAME_API_URL ?? 'https://api.keyname.dev',
-  clientId: import.meta.env.VITE_KEYNAME_CLIENT_ID ?? '',
-  redirectUri: import.meta.env.VITE_KEYNAME_REDIRECT_URI ?? `${location.origin}/auth/callback`,
-}
-
-function App() {
-  const auth = useMemo(() => createKeynameAuth(config, browserAuthStorage), [])
-  const [tokens, setTokens] = useState<KeynameTokenSet | null>(null)
-  const [message, setMessage] = useState('Ask Rue anything…')
-  const [error, setError] = useState('')
-  useEffect(() => {
-    if (location.pathname !== '/auth/callback') return
-    auth.exchange(location.href).then((next) => {
-      setTokens(next)
-      history.replaceState({}, '', '/')
-    }).catch((cause) => setError(cause instanceof Error ? cause.message : 'Sign-in failed'))
-  }, [auth])
-  const signIn = async () => {
-    if (!config.clientId) return setError('VITE_KEYNAME_CLIENT_ID is required')
-    location.assign(await auth.authorizeUrl())
-  }
-  return <main>
-    <aside><strong>Rue</strong><nav>New session<br/>History<br/>Settings</nav></aside>
-    <section>
-      <header><span>Multisurface AI workspace</span>{tokens ? <button onClick={() => setTokens(null)}>Sign out</button> : <button onClick={signIn}>Continue with Keyname</button>}</header>
-      <article><h1>One assistant. Every surface.</h1><p>Web, mobile, desktop, and terminal sessions backed by the Rue API.</p>{error && <p className="error">{error}</p>}</article>
-      <form onSubmit={(event) => { event.preventDefault(); setMessage('Connect the Rue API to start a session.') }}><input aria-label="Message" value={message} onChange={(event) => setMessage(event.target.value)}/><button>Send</button></form>
-    </section>
-  </main>
-}
-
-createRoot(document.getElementById('root')!).render(<StrictMode><App/></StrictMode>)
+import {StrictMode,useEffect,useMemo,useState} from 'react'
+import {createRoot} from 'react-dom/client'
+import {createRootRoute,createRoute,createRouter,RouterProvider} from '@tanstack/react-router'
+import {QueryClientProvider,useQuery} from '@tanstack/react-query'
+import {useForm} from '@tanstack/react-form'
+import {browserAuthStorage,createKeynameAuth,type KeynameTokenSet} from '@multiterm/rue-auth'
+import {createRueQueryClient,createRueTrpcClient} from '@multiterm/rue-trpc/client'
+import {Badge,Button,Input,ThemeControls,ThemeProvider} from '@multiterm/rue-ui'
+const authConfig={apiUrl:import.meta.env.VITE_KEYNAME_API_URL??'https://api.keyname.dev',clientId:import.meta.env.VITE_KEYNAME_CLIENT_ID??'',redirectUri:import.meta.env.VITE_KEYNAME_REDIRECT_URI??`${location.origin}/auth/callback`}
+let activeToken:string|undefined
+const trpc=createRueTrpcClient({baseUrl:import.meta.env.VITE_RUE_API_URL??location.origin,token:()=>activeToken})
+function Workspace(){const auth=useMemo(()=>createKeynameAuth(authConfig,browserAuthStorage),[]);const[tokens,setTokens]=useState<KeynameTokenSet|null>(null);const[error,setError]=useState('');const sessions=useQuery({queryKey:['sessions'],queryFn:()=>trpc.sessions.query(),retry:false});const form=useForm({defaultValues:{message:''},onSubmit:async({value})=>{if(!value.message.trim())return;setError('Agent streaming is connected through the Rue session API.');form.reset()}});useEffect(()=>{activeToken=tokens?.token},[tokens]);useEffect(()=>{if(location.pathname!=='/auth/callback')return;auth.exchange(location.href).then(next=>{activeToken=next.token;setTokens(next);history.replaceState({},'','/')}).catch(cause=>setError(cause instanceof Error?cause.message:'Sign-in failed'))},[auth]);const signIn=async()=>{if(!authConfig.clientId)return setError('VITE_KEYNAME_CLIENT_ID is required');location.assign(await auth.authorizeUrl())};return <main className="grid min-h-dvh grid-cols-[250px_1fr] max-md:grid-cols-1"><aside className="border-r border-border bg-background/60 p-7 backdrop-blur-xl max-md:hidden"><div className="font-display text-3xl font-black text-primary">Rue</div><Button className="mt-8 w-full">New session</Button><nav className="mt-8 grid gap-2 text-sm text-muted">{sessions.data?.map(session=><button className="rounded-md px-3 py-2 text-left hover:bg-surface" key={session.id}>{session.title||'Untitled session'}</button>)??<span>{sessions.isLoading?'Loading sessions…':'No sessions yet'}</span>}</nav></aside><section className="grid min-w-0 grid-rows-[auto_1fr_auto] gap-6 p-6"><header className="flex items-center justify-between"><Badge>Multisurface AI workspace</Badge><div className="flex items-center gap-3"><ThemeControls/>{tokens?<Button variant="secondary" onClick={()=>setTokens(null)}>Sign out</Button>:<Button onClick={signIn}>Continue with Keyname</Button>}</div></header><article className="m-auto max-w-4xl"><h1 className="font-display text-[clamp(3.5rem,8vw,7.5rem)] font-black leading-[.86] tracking-[-.06em]">One assistant.<br/><span className="text-primary">Every surface.</span></h1><p className="mt-7 max-w-2xl text-xl leading-8 text-muted">Web, mobile, desktop, and terminal sessions powered by TanStack, tRPC, Drizzle, and Keyname.</p>{error&&<p className="mt-5 text-sm text-warning">{error}</p>}</article><form onSubmit={e=>{e.preventDefault();e.stopPropagation();void form.handleSubmit()}} className="mx-auto flex w-full max-w-4xl gap-3"><form.Field name="message">{field=><Input aria-label="Message" placeholder="Ask Rue anything…" value={field.state.value} onChange={e=>field.handleChange(e.target.value)}/>}</form.Field><Button type="submit">Send</Button></form></section></main>}
+const rootRoute=createRootRoute();const indexRoute=createRoute({getParentRoute:()=>rootRoute,path:'/',component:Workspace});const callbackRoute=createRoute({getParentRoute:()=>rootRoute,path:'/auth/callback',component:Workspace});const router=createRouter({routeTree:rootRoute.addChildren([indexRoute,callbackRoute]),defaultPreload:'intent'});declare module '@tanstack/react-router'{interface Register{router:typeof router}}
+const queryClient=createRueQueryClient();createRoot(document.getElementById('root')!).render(<StrictMode><ThemeProvider><QueryClientProvider client={queryClient}><RouterProvider router={router}/></QueryClientProvider></ThemeProvider></StrictMode>)

@@ -15,7 +15,7 @@ tasks:
   build:
     command: [corepack, pnpm, build]
     timeout: 15m
-    outputs: [packages/apps/core/dist, packages/apps/webapp/dist, packages/apps/site/dist, packages/libs/sdk/dist]
+    outputs: [packages/apps/core/dist, packages/apps/webapp/dist, packages/apps/docs/dist, packages/apps/site/dist, packages/libs/sdk/dist]
 
 services:
   api:
@@ -36,6 +36,12 @@ services:
     port: 4174
     health: /
     resources: { memory: 512m, cpus: "0.5" }
+  docs:
+    root: packages/apps/docs
+    command: [node, ../../../scripts/serve-static.mjs, dist, "4175"]
+    port: 4175
+    health: /
+    resources: { memory: 512m, cpus: "0.5" }
 
 checks:
   health:
@@ -45,16 +51,16 @@ checks:
 environments:
   preview:
     pipeline: [build, typecheck, test]
-    services: [api, webapp, site]
+    services: [api, webapp, site, docs]
     checks: [health]
     routing: { sso: false }
   development:
     pipeline: [build, typecheck, test]
-    services: [api, webapp, site]
+    services: [api, webapp, site, docs]
     checks: [health]
     routing: { sso: false }
   production:
     pipeline: [build, typecheck, test]
-    services: [api, webapp, site]
+    services: [api, webapp, site, docs]
     checks: [health]
     routing: { sso: false }

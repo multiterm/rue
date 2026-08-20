@@ -12,4 +12,5 @@
  *
  * See ../docs/refactor-plan.md.
  */
+export { rueNativeThemes as RUE_TUI_THEMES } from '@multiterm/rue-gds'
 export const RUE_TUI_VERSION = '0.0.0'

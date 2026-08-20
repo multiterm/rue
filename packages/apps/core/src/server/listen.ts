@@ -5,6 +5,7 @@ import { openDatabase } from '../storage/index.js'
 import type { Database } from 'better-sqlite3'
 import { createApp } from './app.js'
 import type { ServerContext } from './context.js'
+import { createRueDatabase } from '@multiterm/rue-db'
 
 export interface ListenOptions {
   config: Config
@@ -33,13 +34,11 @@ export interface RueServer {
  * Returns a handle with the resolved URL and a `close()` for clean shutdown.
  */
 export async function listen(opts: ListenOptions): Promise<RueServer> {
-  const ctx: ServerContext =
-    opts.ctx ??
-    ({
-      db: openDatabase(opts.dbPath),
-      config: opts.config,
-      bus: new Bus(),
-    } satisfies ServerContext)
+  const ctx: ServerContext = opts.ctx ?? (() => {
+    const db = openDatabase(opts.dbPath)
+    return { db, orm: createRueDatabase(db), config: opts.config, bus: new Bus() }
+  })()
+  if (!ctx.orm) ctx.orm = createRueDatabase(ctx.db)
 
   const app = createApp({ ctx, log: opts.log })
 
