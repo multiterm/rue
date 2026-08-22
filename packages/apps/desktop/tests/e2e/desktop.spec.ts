@@ -1,0 +1,5 @@
+import {expect,test} from '@playwright/test'
+import {readFile} from 'node:fs/promises'
+import {resolve} from 'node:path'
+test('desktop renderer presents the Rue login application',async({page})=>{await page.route('https://api.keyname.dev/auth.js',route=>route.fulfill({status:200,contentType:'text/javascript',body:'window.Keyname={ready:Promise.resolve(null),currentUser:async()=>null,getAccessToken:async()=>null,onAuthChange:()=>()=>{},signIn:async()=>null,signOut:async()=>{},closeModal(){},startSessionPolling(){return 0}}'}));await page.goto('/login');await expect(page).toHaveTitle('Rue');await expect(page.getByRole('heading',{name:'Welcome back'})).toBeVisible()})
+test('Electron shell enforces isolated renderer security',async()=>{const source=await readFile(resolve(import.meta.dirname,'../../src/index.ts'),'utf8');expect(source).toContain('contextIsolation: true');expect(source).toContain('nodeIntegration: false');expect(source).toContain('sandbox: true');expect(source).toContain('RUE_WEBAPP_URL')})

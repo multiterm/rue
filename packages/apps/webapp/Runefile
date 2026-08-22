@@ -1,5 +1,6 @@
 dev: vite
 build: tsc --noEmit && vite build
 typecheck: tsc --noEmit
-test: vitest run --passWithNoTests
+test: vitest run --passWithNoTests --exclude "tests/e2e/**"
+test-e2e: playwright test
 lint: tsc --noEmit

@@ -28,10 +28,14 @@ The repository follows the Multiterm/Honeycluster package layout and includes th
 pnpm install
 pnpm exec rune typecheck
 pnpm exec rune test
+pnpm exec rune playwright-install
+pnpm exec rune test-e2e
 pnpm exec rune build
 ```
 
 Copy the variable names from [`docs/deployment.md`](./docs/deployment.md) into your secret manager. Never commit Keyname credentials.
+
+Playwright covers the API lifecycle, Keyname login and workspace flows, docs navigation/search, site forms/themes, Expo web mobile surface, desktop renderer/security contract, and TUI layout contract in desktop and mobile Chromium profiles.
 
 ## Deploy and release
 
@@ -43,4 +47,4 @@ pnpm exec rune release-dry
 pnpm exec rune release
 ```
 
-`develop` publishes beta versions; `main` publishes the `latest` npm channel. The public SDK is [`@multiterm/rue-sdk`](./packages/libs/sdk).
+`develop` publishes beta versions and deploys Sandblocks `preview`; `main` publishes the `latest` npm channel and deploys Sandblocks `prod`. Install the branch-aware background hook with `pnpm exec rune sandblocks-hooks-install`. The public SDK is [`@multiterm/rue-sdk`](./packages/libs/sdk).

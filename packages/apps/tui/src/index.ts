@@ -13,4 +13,7 @@
  * See ../docs/refactor-plan.md.
  */
 export { rueNativeThemes as RUE_TUI_THEMES } from '@multiterm/rue-gds'
+export function createTuiScreen(state: { sessionCount: number; connected: boolean }) {
+  return `Rue · ${state.sessionCount} sessions · ${state.connected ? 'Connected' : 'Offline'}\nAsk Rue anything…`
+}
 export const RUE_TUI_VERSION = '0.0.0'

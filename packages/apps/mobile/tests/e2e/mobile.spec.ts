@@ -1,0 +1,2 @@
+import {expect,test} from '@playwright/test'
+test('mobile application renders the Keyname onboarding surface',async({page})=>{await page.goto('/');await expect(page.getByText('RUE',{exact:true})).toBeVisible();await expect(page.getByText('Your workspace, in motion.')).toBeVisible();await expect(page.getByText(/Continue sessions from web/)).toBeVisible();await expect(page.getByText('Continue with Keyname')).toBeVisible();expect(await page.locator('body').screenshot()).not.toHaveLength(0)})

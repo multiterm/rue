@@ -3,5 +3,6 @@ dev: tsx src/bin.ts
 rue: tsx src/bin.ts
 typecheck: tsc -p tsconfig.json --noEmit
 lint: tsc -p tsconfig.json --noEmit
-test: vitest run
+test: vitest run --exclude "tests/e2e/**"
+test-e2e: playwright test
 test-watch: vitest

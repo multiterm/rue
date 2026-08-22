@@ -1,0 +1,2 @@
+import {defineConfig} from '@playwright/test'
+export default defineConfig({testDir:'tests/e2e',timeout:30_000,fullyParallel:false,forbidOnly:!!process.env.CI,retries:process.env.CI?1:0,reporter:process.env.CI?'github':'list',use:{baseURL:'http://127.0.0.1:5197'},webServer:{command:'pnpm exec rune build && node dist/bin.js serve --hostname 127.0.0.1 --port 5197',url:'http://127.0.0.1:5197/health',reuseExistingServer:!process.env.CI,timeout:120_000}})

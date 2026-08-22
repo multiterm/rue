@@ -59,7 +59,7 @@ environments:
     services: [api, webapp, site, docs]
     checks: [health]
     routing: { sso: false }
-  production:
+  prod:
     pipeline: [build, typecheck, test]
     services: [api, webapp, site, docs]
     checks: [health]

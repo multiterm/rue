@@ -1,5 +1,8 @@
 build: pnpm -r exec rune build
 test: pnpm -r exec rune test
+test-e2e: pnpm --workspace-concurrency=1 --filter './packages/apps/**' -r exec rune test-e2e
+playwright-install: playwright install chromium
+playwright-install-ci: playwright install --with-deps chromium
 typecheck: pnpm -r exec rune typecheck
 lint: pnpm -r exec rune lint
 format: prettier --write . --ignore-unknown
@@ -13,6 +16,8 @@ hooks-status: pnpm exec m-release hook status .
 sandblocks-validate: pnpm exec sandblocks validate .
 sandblocks-doctor: pnpm exec sandblocks doctor .
 sandblocks-register: pnpm exec sandblocks register .
+sandblocks-hooks-install: chmod 755 .hooks/post-commit scripts/deployment/sandblocks-post-commit.mjs && git config core.hooksPath .hooks
+sandblocks-hooks-status: test "$(git config --get core.hooksPath)" = ".hooks" && echo "Sandblocks post-commit hook installed: develop -> preview, main -> prod"
 deploy: pnpm exec sandblocks sandbox up .
 redeploy: pnpm exec sandblocks sandbox redeploy .
 status: pnpm exec sandblocks sandbox status .
