@@ -1,0 +1,10 @@
+#!/bin/sh
+# rue-sandblocks-managed-post-commit
+set -u
+root=$(git rev-parse --show-toplevel) || exit $?
+cd "$root" || exit $?
+if [ "${SANDBLOCKS_SKIP_POST_COMMIT:-0}" = "1" ]; then
+  echo "sandblocks post-commit skipped by SANDBLOCKS_SKIP_POST_COMMIT"
+  exit 0
+fi
+exec node scripts/deployment/sandblocks-post-commit.mjs
