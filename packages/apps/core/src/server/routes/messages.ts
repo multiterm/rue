@@ -1,4 +1,5 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { randomBytes } from 'node:crypto'
 import { getProvider } from '../../provider/index.js'
 import { runQuery } from '../../session/index.js'
 import { appendMessage, appendPart, getSession } from '../../storage/index.js'
@@ -9,13 +10,13 @@ import type { ServerContext } from '../context.js'
 
 const SendMessageRequestSchema = z
   .object({
-    text: z.string().min(1, 'text must be non-empty'),
+    text: z.string().min(1, 'text must be non-empty').max(100_000),
     /** Per-message provider override. */
     provider: z.string().optional(),
     /** Per-message model override. */
     model: z.string().optional(),
     /** Per-message system prompt addendum. */
-    systemPrompt: z.string().optional(),
+    systemPrompt: z.string().max(100_000).optional(),
     /** If true, run synchronously and wait for completion before responding. */
     wait: z.boolean().optional(),
   })
@@ -35,10 +36,20 @@ const ErrorSchema = z.object({ error: z.string() }).openapi('Error')
 
 /* ---------- handler ---------- */
 
+function reserveRun(ctx: ServerContext, subject: string): (() => void) | undefined {
+  const active = ctx.activeRuns ??= new Map<string, number>()
+  const count = active.get(subject) ?? 0
+  if (count >= 3) return undefined
+  active.set(subject, count + 1)
+  return () => {
+    const next = (active.get(subject) ?? 1) - 1
+    if (next <= 0) active.delete(subject)
+    else active.set(subject, next)
+  }
+}
+
 function generateId(prefix: string): string {
-  const rand =
-    Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
-  return `${prefix}_${rand.slice(0, 24)}`
+  return `${prefix}_${randomBytes(18).toString('base64url')}`
 }
 
 /**
@@ -81,6 +92,10 @@ export function messageRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
           description: 'Bad request',
           content: { 'application/json': { schema: ErrorSchema } },
         },
+        429: {
+          description: 'Too many active runs',
+          content: { 'application/json': { schema: ErrorSchema } },
+        },
       },
     }),
     async (c) => {
@@ -88,7 +103,7 @@ export function messageRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
       const { id: sessionId } = c.req.valid('param')
       const body = c.req.valid('json')
 
-      const session = getSession(ctx.db, sessionId)
+      const session = getSession(ctx.db, sessionId, c.get('principal').subject)
       if (!session) return c.json({ error: 'session_not_found' }, 404)
 
       const providerId = body.provider ?? session.provider ?? ctx.config.provider
@@ -102,6 +117,9 @@ export function messageRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
       if (!apiKey && providerId !== 'ollama') {
         return c.json({ error: `no_credentials_for:${providerId}` }, 400)
       }
+
+      const releaseRun = reserveRun(ctx, c.get('principal').subject)
+      if (!releaseRun) return c.json({ error: 'too_many_active_runs' }, 429)
 
       // Persist the user message + text part synchronously.
       const userMessageId = generateId('msg')
@@ -145,7 +163,7 @@ export function messageRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
         systemPrompt: body.systemPrompt ?? ctx.config.systemPrompt,
         tokenBudget: ctx.config.tokenBudget,
         maxTurns: ctx.config.maxTurns,
-      })
+      }).finally(releaseRun)
 
       if (body.wait) {
         const result = await runPromise

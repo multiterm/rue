@@ -1,4 +1,5 @@
 import type { Database } from 'better-sqlite3'
+import { randomBytes } from 'node:crypto'
 import type { Bus } from '../bus/index.js'
 import {
   type ChatMessage,
@@ -236,6 +237,17 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
       // Output-token recovery — retry the same turn with a raised cap, but
       // only once (we track this via maxTokensOverride being set).
       if (reply.truncated && maxTokensOverride === undefined && recoveries < MAX_RECOVERIES) {
+        // The retry asks the model for a complete replacement. Supersede the
+        // partial text so clients never concatenate a truncated answer with
+        // the replacement response.
+        updatePart(db, textPartId, { text: '', streaming: false, superseded: true })
+        bus.publish('part.completed', {
+          sessionId,
+          messageId,
+          partId: textPartId,
+          text: '',
+          superseded: true,
+        })
         maxTokensOverride = ESCALATED_MAX_OUTPUT_TOKENS
         recoveries++
         const stepFinishId = randomPartId('stp')
@@ -388,9 +400,7 @@ function groupBy<T, K>(items: ReadonlyArray<T>, key: (t: T) => K): Map<K, T[]> {
 }
 
 function randomPartId(prefix: string): string {
-  const r1 = Math.random().toString(36).slice(2)
-  const r2 = Math.random().toString(36).slice(2)
-  return `${prefix}_${(r1 + r2).slice(0, 24)}`
+  return `${prefix}_${randomBytes(18).toString('base64url')}`
 }
 
 /** Exported for tests. */

@@ -16,7 +16,12 @@ const createWindow = async () => {
     return { action: 'deny' }
   })
   if (process.env.RUE_WEBAPP_URL) await window.loadURL(process.env.RUE_WEBAPP_URL)
-  else await window.loadFile(join(app.getAppPath(), '../webapp/dist/index.html'))
+  else {
+    const renderer = app.isPackaged
+      ? join(process.resourcesPath, 'webapp', 'index.html')
+      : join(app.getAppPath(), '../webapp/dist/index.html')
+    await window.loadFile(renderer)
+  }
 }
 
 app.whenReady().then(async () => {

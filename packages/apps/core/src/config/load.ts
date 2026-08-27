@@ -105,7 +105,11 @@ export function loadConfig(cwd: string = process.cwd()): Config {
       },
     })
   }
-  return ConfigSchema.parse(mergeConfigs(parts))
+  const config = ConfigSchema.parse(mergeConfigs(parts))
+  if (process.env.KEYNAME_REQUIRE_AUDIENCE === 'true' && config.keyname.enabled && !config.keyname.clientId) {
+    throw new Error('KEYNAME_CLIENT_ID is required when KEYNAME_REQUIRE_AUDIENCE=true')
+  }
+  return config
 }
 
 /** Strip `//` and `/* * /` comments from a JSONC string (string-literal aware). */

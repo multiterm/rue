@@ -1,0 +1,8 @@
+# syntax=docker/dockerfile:1.7
+FROM mcr.microsoft.com/playwright:v1.62.1-noble
+WORKDIR /opt/rue-e2e
+RUN npm init -y >/dev/null \
+  && npm install --omit=dev --no-audit --no-fund @playwright/test@1.62.1 typescript@6.0.3
+COPY quality ./quality
+ENV SANDBLOCKS_ARTIFACTS_DIR=/sandblocks-artifacts CI=true
+CMD ["npx", "playwright", "test", "--config", "quality/playwright.config.ts"]

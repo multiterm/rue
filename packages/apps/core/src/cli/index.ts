@@ -4,6 +4,7 @@ import { serveCommand } from './serve.js'
 import { dbCommand } from './db.js'
 import { accountCommand } from './account.js'
 import { runCommand } from './run.js'
+import { tuiCommand } from './tui.js'
 
 export async function run(argv: string[] = hideBin(process.argv)): Promise<void> {
   await yargs(argv)
@@ -11,6 +12,7 @@ export async function run(argv: string[] = hideBin(process.argv)): Promise<void>
     .usage('$0 <command>')
     .command(serveCommand)
     .command(runCommand)
+    .command(tuiCommand)
     .command(dbCommand)
     .command(accountCommand)
     .demandCommand(1)

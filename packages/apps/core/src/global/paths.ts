@@ -23,22 +23,24 @@ import { join, resolve } from 'node:path'
 
 const APP_NAME = 'rue'
 
-const dataRoot = xdgData ?? join(homedir(), '.local', 'share')
+const defaultDataRoot = xdgData ?? join(homedir(), '.local', 'share')
+const dataRoot = process.env.RUE_DATA_DIR ? resolve(process.env.RUE_DATA_DIR, '..') : defaultDataRoot
+const appData = process.env.RUE_DATA_DIR ? resolve(process.env.RUE_DATA_DIR) : join(dataRoot, APP_NAME)
 const configRoot = xdgConfig ?? join(homedir(), '.config')
 
 export const Paths = {
   /** OS data dir for rue. Contains DB + filesystem-backed stores. */
-  data: join(dataRoot, APP_NAME),
+  data: appData,
   /** OS config dir for rue. User-editable config + themes. */
   config: join(configRoot, APP_NAME),
   /** Main SQLite database file. */
-  db: join(dataRoot, APP_NAME, 'rue.db'),
+  db: join(appData, 'rue.db'),
   /** Memory directory (one .md per memory). */
-  memory: join(dataRoot, APP_NAME, 'memory'),
+  memory: join(appData, 'memory'),
   /** User skills directory. */
-  skills: join(dataRoot, APP_NAME, 'skills'),
+  skills: join(appData, 'skills'),
   /** Logs directory. */
-  logs: join(dataRoot, APP_NAME, 'logs'),
+  logs: join(appData, 'logs'),
   /** Default rue.json location (user-global). */
   configFile: join(configRoot, APP_NAME, 'rue.json'),
   /** User-defined themes directory. */

@@ -10,6 +10,7 @@
  */
 
 export interface BusEvent<P = unknown> {
+  id: number
   type: string
   payload: P
   /** Server-side wall-clock timestamp; useful for replay/ordering. */
@@ -20,9 +21,13 @@ export type Listener = (event: BusEvent) => void
 
 export class Bus {
   #listeners = new Set<Listener>()
+  #history: BusEvent[] = []
+  #nextId = 1
 
   publish<P>(type: string, payload: P): BusEvent<P> {
-    const event: BusEvent<P> = { type, payload, time: Date.now() }
+    const event: BusEvent<P> = { id: this.#nextId++, type, payload, time: Date.now() }
+    this.#history.push(event)
+    if (this.#history.length > 1000) this.#history.shift()
     for (const fn of this.#listeners) {
       try {
         fn(event)
@@ -54,6 +59,10 @@ export class Bus {
     return this.subscribe((event) => {
       if (event.type === type) fn(event as BusEvent<P>)
     })
+  }
+
+  historySince(lastEventId: number): BusEvent[] {
+    return this.#history.filter((event) => event.id > lastEventId)
   }
 
   listenerCount(): number {

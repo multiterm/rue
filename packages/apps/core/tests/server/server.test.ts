@@ -134,6 +134,29 @@ describe('server: Keyname auth', () => {
     verify.mockRestore()
     ctx.db.close()
   })
+
+  it('isolates sessions by verified Keyname subject', async () => {
+    const ctx = makeCtx()
+    ctx.config.keyname.enabled = true
+    const app = createApp({ ctx })
+    const verify = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const token = (JSON.parse(String(init?.body)) as { token: string }).token
+      return new Response(JSON.stringify({ token: { subject: token, principalType: 'user' } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    })
+    const created = await app.request('/session', {
+      method: 'POST',
+      headers: { authorization: 'Bearer user_a', 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'private' }),
+    })
+    expect(created.status).toBe(200)
+    expect(await app.request('/session', { headers: { authorization: 'Bearer user_a' } }).then((r) => r.json())).toHaveLength(1)
+    expect(await app.request('/session', { headers: { authorization: 'Bearer user_b' } }).then((r) => r.json())).toHaveLength(0)
+    verify.mockRestore()
+    ctx.db.close()
+  })
 })
 
 describe('server: basic auth', () => {

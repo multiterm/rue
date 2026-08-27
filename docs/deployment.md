@@ -13,7 +13,6 @@ Configure secrets through Sandblocks/Pluto or the deployment environment:
 ```text
 KEYNAME_API_URL=https://api.keyname.dev
 KEYNAME_AUTH_ENABLED=true
-KEYNAME_API_URL=https://api.keyname.dev
 # Optional API audience for a registered OAuth client:
 KEYNAME_CLIENT_ID=
 VITE_KEYNAME_API_URL=https://api.keyname.dev
@@ -22,11 +21,13 @@ EXPO_PUBLIC_KEYNAME_API_URL=https://api.keyname.dev
 EXPO_PUBLIC_KEYNAME_CLIENT_ID=
 ```
 
-Browser and Electron surfaces load Keyname `auth.js`; they do not require `VITE_KEYNAME_CLIENT_ID`. Client IDs are public, but client secrets must never be placed in Vite, Expo, or Electron bundles. When configured, the core uses `KEYNAME_CLIENT_ID` as an additional token audience check.
+Browser and Electron surfaces load Keyname `auth.js`; they do not require `VITE_KEYNAME_CLIENT_ID`. Client IDs are public, but client secrets must never be placed in Vite, Expo, or Electron bundles. The immutable `preview` and `production` services set `KEYNAME_REQUIRE_AUDIENCE=true`; `KEYNAME_CLIENT_ID` is therefore mandatory there and is sent to Keyname as the token audience check. The HMR `develop` environment permits audience-free integration while tenant isolation remains enforced.
 
 ## Sandblocks
 
-The v2 contract builds and deploys the API, webapp, docs, and landing site. The committed post-commit hook maps `develop` to `preview` and `main` to `prod`; other branches are ignored. Install it once per clone with `pnpm exec rune sandblocks-hooks-install` and inspect it with `pnpm exec rune sandblocks-hooks-status`. Deployments run in the background and write ignored logs under `.sandblocks/logs/`. Set `SANDBLOCKS_SKIP_POST_COMMIT=1` to skip one commit.
+The v2 contract deploys the API, webapp, docs, and landing site from three reserved branches: `develop` maps to the HMR-enabled `develop` environment, `pre` maps to immutable `preview`, and `prod` maps to immutable `production`. Other branches are ignored. Install the committed deployment and quality hooks once per clone with `pnpm exec rune sandblocks-hooks-install` and inspect them with `pnpm exec rune sandblocks-hooks-status`. Deployments run in the background and write ignored logs under `.sandblocks/logs/`. Set `SANDBLOCKS_SKIP_POST_COMMIT=1` to skip deployment or `RUE_SKIP_QUALITY=1` to bypass a local quality hook explicitly.
+
+GitHub Actions is not part of Rue's build, test, promotion, or deployment lifecycle. Local pre-commit/pre-push gates and Sandblocks pipelines own those checks.
 
 Validate before deployment:
 

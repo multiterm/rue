@@ -1,15 +1,6 @@
-import { createReadStream, existsSync, statSync } from 'node:fs'
-import { createServer } from 'node:http'
-import { extname, join, resolve } from 'node:path'
-
-const root = resolve(process.argv[2] ?? 'dist')
-const port = Number(process.argv[3] ?? 4173)
-const types = { '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml' }
-createServer((request, response) => {
-  const pathname = decodeURIComponent(new URL(request.url ?? '/', 'http://localhost').pathname)
-  let file = join(root, pathname === '/' ? 'index.html' : pathname)
-  if (!file.startsWith(root) || !existsSync(file) || statSync(file).isDirectory()) file = join(root, 'index.html')
-  response.setHeader('content-type', types[extname(file)] ?? 'application/octet-stream')
-  response.setHeader('cache-control', file.endsWith('index.html') ? 'no-cache' : 'public, max-age=31536000, immutable')
-  createReadStream(file).on('error', () => { response.statusCode = 404; response.end('Not found') }).pipe(response)
-}).listen(port, '0.0.0.0', () => console.log(`static service listening on ${port}`))
+import {createReadStream,existsSync,statSync} from 'node:fs'
+import {createServer} from 'node:http'
+import {extname,relative,resolve} from 'node:path'
+const root=resolve(process.argv[2]??'dist');const port=Number(process.argv[3]??4173)
+const types={'.css':'text/css; charset=utf-8','.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json','.svg':'image/svg+xml'}
+createServer((request,response)=>{let pathname='/';try{pathname=decodeURIComponent(new URL(request.url??'/','http://localhost').pathname)}catch{response.statusCode=400;response.end('Bad request');return}const candidate=resolve(root,`.${pathname}`);const contained=relative(root,candidate);let file=!contained.startsWith('..')&&!contained.includes('\0')?candidate:resolve(root,'index.html');if(pathname==='/'||!existsSync(file)||statSync(file).isDirectory())file=resolve(root,'index.html');response.setHeader('content-type',types[extname(file)]??'application/octet-stream');response.setHeader('cache-control',file.endsWith('index.html')?'no-cache':'public, max-age=31536000, immutable');response.setHeader('content-security-policy',"default-src 'self'; script-src 'self' https://api.keyname.dev; connect-src 'self' https: wss:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://api.keyname.dev");response.setHeader('referrer-policy','strict-origin-when-cross-origin');response.setHeader('x-content-type-options','nosniff');response.setHeader('x-frame-options','DENY');response.setHeader('permissions-policy','camera=(), microphone=(), geolocation=()');createReadStream(file).on('error',()=>{response.statusCode=404;response.end('Not found')}).pipe(response)}).listen(port,'0.0.0.0',()=>console.log(`static service listening on ${port}`))

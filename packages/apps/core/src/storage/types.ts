@@ -29,6 +29,7 @@ export interface SessionRow {
   directory: string | null
   scopes: string[]
   parentId: string | null
+  ownerSubject: string
   createdAt: number
   updatedAt: number
   meta: Record<string, unknown>

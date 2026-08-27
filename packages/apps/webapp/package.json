@@ -7,6 +7,7 @@
     "@multiterm/rue-auth": "workspace:*",
     "@multiterm/rue-config": "workspace:*",
     "@multiterm/rue-gds": "workspace:*",
+    "@multiterm/rue-sdk": "workspace:*",
     "@multiterm/rue-trpc": "workspace:*",
     "@multiterm/rue-ui": "workspace:*",
     "@tanstack/react-form": "catalog:",

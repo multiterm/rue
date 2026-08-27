@@ -20,6 +20,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       appVariant: variant,
       keynameApiUrl: process.env.EXPO_PUBLIC_KEYNAME_API_URL ?? 'https://api.keyname.dev',
       keynameClientId: process.env.EXPO_PUBLIC_KEYNAME_CLIENT_ID ?? '',
+      rueApiUrl: process.env.EXPO_PUBLIC_RUE_API_URL ?? 'https://api.rue.multiterm.dev',
     },
   }
 }

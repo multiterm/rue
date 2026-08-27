@@ -2,16 +2,16 @@ import { describe, it, expect } from 'vitest'
 import { openDatabase } from '../../src/storage/index.js'
 
 describe('storage: migrations', () => {
-  it('is idempotent — opening twice does not re-apply migration 1', () => {
+  it('is idempotent — opening twice does not re-apply migrations', () => {
     const d = openDatabase(':memory:')
     const rows = d.prepare('SELECT id, name FROM migrations').all()
-    expect(rows).toEqual([{ id: 1, name: 'init' }])
+    expect(rows).toEqual([{ id: 1, name: 'init' }, { id: 2, name: 'session_ownership' }])
 
     // Re-running the migrator on the SAME db must be a no-op. We invoke
     // applyMigrations indirectly by re-running the schema check.
     d.exec('SELECT 1')
     const again = d.prepare('SELECT id FROM migrations').all()
-    expect(again).toHaveLength(1)
+    expect(again).toHaveLength(2)
   })
 
   it('creates all expected tables', () => {

@@ -6,6 +6,15 @@ playwright-install-ci: playwright install --with-deps chromium
 typecheck: pnpm -r exec rune typecheck
 lint: pnpm -r exec rune lint
 format: prettier --write . --ignore-unknown
+format-check: git diff --check
+quality-unit: vitest run --config quality/vitest.config.ts
+quality-crap: node quality/check-crap.mjs
+quality-audit: node quality/check-audit.mjs
+quality-fast: rune quality-unit && rune quality-crap
+quality-static: rune format-check && rune typecheck && rune test && rune build && rune quality-fast && rune quality-audit
+quality-playwright: playwright test --config quality/playwright.config.ts
+quality-deployed: rune quality-playwright
+quality: rune quality-static && rune test-e2e
 clean: pnpm -r exec rm -rf dist node_modules && rm -rf node_modules
 
 release: pnpm exec m-release --yes
@@ -16,8 +25,8 @@ hooks-status: pnpm exec m-release hook status .
 sandblocks-validate: pnpm exec sandblocks validate .
 sandblocks-doctor: pnpm exec sandblocks doctor .
 sandblocks-register: pnpm exec sandblocks register .
-sandblocks-hooks-install: chmod 755 .hooks/post-commit scripts/deployment/sandblocks-post-commit.mjs && git config core.hooksPath .hooks
-sandblocks-hooks-status: test "$(git config --get core.hooksPath)" = ".hooks" && echo "Sandblocks post-commit hook installed: develop -> preview, main -> prod"
+sandblocks-hooks-install: chmod 755 .hooks/post-commit .hooks/pre-commit .hooks/pre-push scripts/deployment/sandblocks-post-commit.mjs && git config core.hooksPath .hooks
+sandblocks-hooks-status: test "$(git config --get core.hooksPath)" = ".hooks" && echo "Rue hooks installed: develop -> develop, pre -> preview, prod -> production; local quality gates enabled"
 deploy: pnpm exec sandblocks sandbox up .
 redeploy: pnpm exec sandblocks sandbox redeploy .
 status: pnpm exec sandblocks sandbox status .

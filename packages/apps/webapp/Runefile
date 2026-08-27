@@ -1,6 +1,6 @@
 dev: vite
-build: tsc --noEmit && vite build
-typecheck: tsc --noEmit
+build: pnpm --filter @multiterm/rue-sdk exec rune build && tsc --noEmit && vite build
+typecheck: pnpm --filter @multiterm/rue-sdk exec rune build && tsc --noEmit
 test: vitest run --passWithNoTests --exclude "tests/e2e/**"
 test-e2e: playwright test
-lint: tsc --noEmit
+lint: pnpm --filter @multiterm/rue-sdk exec rune build && tsc --noEmit

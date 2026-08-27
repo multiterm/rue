@@ -1,4 +1,5 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { randomBytes } from 'node:crypto'
 import {
   createSession,
   deleteSession,
@@ -22,6 +23,7 @@ const SessionSchema = z
     directory: z.string().nullable(),
     scopes: z.array(z.string()),
     parentId: z.string().nullable(),
+    ownerSubject: z.string(),
     createdAt: z.number(),
     updatedAt: z.number(),
     meta: z.record(z.string(), z.unknown()),
@@ -77,9 +79,7 @@ const ErrorSchema = z.object({ error: z.string() }).openapi('Error')
 /* ---------- generator ---------- */
 
 function generateId(prefix: string): string {
-  // 24-char random base36; collision odds are astronomically low for our scale.
-  const rand = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
-  return `${prefix}_${rand.slice(0, 24)}`
+  return `${prefix}_${randomBytes(18).toString('base64url')}`
 }
 
 /* ---------- routes ---------- */
@@ -100,7 +100,7 @@ export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
         },
       },
     }),
-    (c) => c.json(listSessions(c.var.ctx.db), 200),
+    (c) => c.json(listSessions(c.var.ctx.db, 100, c.get('principal').subject), 200),
   )
 
   // Create
@@ -133,6 +133,7 @@ export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
         directory: body.directory,
         scopes: body.scopes,
         parentId: body.parentId,
+        ownerSubject: c.get('principal').subject,
         meta: body.meta,
       })
       c.var.ctx.bus.publish('session.created', { sessionId: row.id })
@@ -160,7 +161,7 @@ export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
     }),
     (c) => {
       const { id } = c.req.valid('param')
-      const row = getSession(c.var.ctx.db, id)
+      const row = getSession(c.var.ctx.db, id, c.get('principal').subject)
       if (!row) return c.json({ error: 'session_not_found' }, 404)
       return c.json(row, 200)
     },
@@ -193,7 +194,7 @@ export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
     (c) => {
       const { id } = c.req.valid('param')
       const body = c.req.valid('json')
-      const row = updateSession(c.var.ctx.db, id, body)
+      const row = updateSession(c.var.ctx.db, id, body, c.get('principal').subject)
       if (!row) return c.json({ error: 'session_not_found' }, 404)
       c.var.ctx.bus.publish('session.updated', { sessionId: row.id })
       return c.json(row, 200)
@@ -216,7 +217,7 @@ export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
     }),
     (c) => {
       const { id } = c.req.valid('param')
-      const ok = deleteSession(c.var.ctx.db, id)
+      const ok = deleteSession(c.var.ctx.db, id, c.get('principal').subject)
       if (ok) c.var.ctx.bus.publish('session.deleted', { sessionId: id })
       return c.json({ deleted: ok }, 200)
     },
@@ -238,6 +239,7 @@ export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
     }),
     (c) => {
       const { id } = c.req.valid('param')
+      if (!getSession(c.var.ctx.db, id, c.get('principal').subject)) return c.json([], 200)
       return c.json(listMessages(c.var.ctx.db, id), 200)
     },
   )
@@ -258,6 +260,7 @@ export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
     }),
     (c) => {
       const { id } = c.req.valid('param')
+      if (!getSession(c.var.ctx.db, id, c.get('principal').subject)) return c.json([], 200)
       return c.json(listSessionParts(c.var.ctx.db, id), 200)
     },
   )

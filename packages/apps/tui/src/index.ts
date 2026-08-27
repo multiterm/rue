@@ -1,19 +1,9 @@
-/**
- * @multiterm/rue-tui — entry point.
- *
- * SolidJS + OpenTUI terminal UI. Loaded in-process by `rue tui` (defined
- * in @multiterm/rue-core's CLI), or attached to a remote core via `rue tui attach
- * <url>` (Phase 8).
- *
- * Layout mirrors @multiterm/rue-webui: collapsible sidebar (session list), main pane
- * (conversation + ask bar), status bar, command palette, themes.
- *
- * Phase 0: scaffold only. Phase 8 implements the TUI.
- *
- * See ../docs/refactor-plan.md.
- */
-export { rueNativeThemes as RUE_TUI_THEMES } from '@multiterm/rue-gds'
-export function createTuiScreen(state: { sessionCount: number; connected: boolean }) {
-  return `Rue · ${state.sessionCount} sessions · ${state.connected ? 'Connected' : 'Offline'}\nAsk Rue anything…`
-}
-export const RUE_TUI_VERSION = '0.0.0'
+import {createInterface} from 'node:readline/promises'
+import {stdin,stdout} from 'node:process'
+export {rueNativeThemes as RUE_TUI_THEMES} from '@multiterm/rue-gds'
+export interface TuiOptions{baseUrl:string;token?:string;input?:NodeJS.ReadableStream;output?:NodeJS.WritableStream}
+interface Session{id:string;title:string}
+const headers=(token?:string,body=false)=>({...body?{'content-type':'application/json'}:{},...token?{authorization:`Bearer ${token}`}:{}})
+export function createTuiScreen(state:{sessionCount:number;connected:boolean}){return `Rue · ${state.sessionCount} sessions · ${state.connected?'Connected':'Offline'}\nAsk Rue anything…`}
+export async function runTui(options:TuiOptions):Promise<void>{const base=options.baseUrl.replace(/\/$/,'');const input=options.input??stdin;const output=options.output??stdout;const request=async<T>(path:string,init:RequestInit={}):Promise<T>=>{const response=await fetch(`${base}${path}`,{...init,headers:{...headers(options.token,Boolean(init.body)),...init.headers}});if(!response.ok)throw new Error(`Rue API ${response.status}: ${await response.text()}`);return response.json() as Promise<T>};const sessions=await request<Session[]>('/session');output.write(`${createTuiScreen({sessionCount:sessions.length,connected:true})}\n`);const terminal=createInterface({input,output});let session=sessions[0];try{while(true){let answer:string;try{answer=await terminal.question('rue> ')}catch(cause){if(cause instanceof Error&&cause.message==='readline was closed')break;throw cause}const prompt=answer.trim();if(!prompt||prompt==='/exit'||prompt==='/quit')break;if(!session)session=await request<Session>('/session',{method:'POST',body:JSON.stringify({title:prompt.slice(0,60)})});const result=await request<{text?:string;stopReason?:string}>(`/session/${encodeURIComponent(session.id)}/message`,{method:'POST',body:JSON.stringify({text:prompt,wait:true})});output.write(`${result.text??`[${result.stopReason??'no response'}]`}\n`)}}finally{terminal.close()}}
+export const RUE_TUI_VERSION='0.1.0'

@@ -6,7 +6,7 @@ import {join,resolve} from 'node:path'
 const root=resolve(import.meta.dirname,'../..')
 if(process.env.SANDBLOCKS_SKIP_POST_COMMIT==='1')process.exit(0)
 const branch=git(['branch','--show-current'])
-const environment=branch==='develop'?'preview':branch==='main'?'prod':undefined
+const environment=branch==='develop'?'develop':branch==='pre'?'preview':branch==='prod'?'production':undefined
 if(!environment){console.log(`sandblocks post-commit skipped on branch ${branch||'(detached)'}`);process.exit(0)}
 if(git(['status','--porcelain'])){console.log(`sandblocks post-commit skipped: worktree is dirty after commit on ${branch}`);process.exit(0)}
 const sandblocks=join(root,'node_modules/.bin/sandblocks')

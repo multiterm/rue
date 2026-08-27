@@ -4,9 +4,13 @@ directories:
   output: release
 files:
   - dist/**
-  - ../webapp/dist/**
+extraResources:
+  - from: ../webapp/dist
+    to: webapp
+    filter: ['**/*']
 mac:
   category: public.app-category.productivity
+  hardenedRuntime: true
   target: [dmg, zip]
 win:
   target: nsis

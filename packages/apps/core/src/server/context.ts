@@ -10,16 +10,24 @@ import type { RueDatabase } from '@multiterm/rue-db'
  * passing one ctx object keeps testing trivial (pass a fake) and avoids
  * fanning the types out across every handler.
  */
+export interface AuthPrincipal {
+  subject: string
+  principalType: 'user' | 'machine' | 'local'
+  scopes: string[]
+}
+
 export interface ServerContext {
   db: Database
   /** Drizzle ORM facade over the same SQLite connection used by legacy stores. */
   orm?: RueDatabase
   config: Config
   bus: Bus
+  activeRuns?: Map<string, number>
 }
 
 declare module 'hono' {
   interface ContextVariableMap {
     ctx: ServerContext
+    principal: AuthPrincipal
   }
 }

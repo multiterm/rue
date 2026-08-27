@@ -1,4 +1,5 @@
 import type { MiddlewareHandler } from 'hono'
+import type { AuthPrincipal } from './context.js'
 
 const EXEMPT_PATHS = new Set(['/doc', '/openapi.json', '/health'])
 
@@ -11,7 +12,10 @@ interface KeynameClaims {
 }
 
 export function keynameAuth(enabled: boolean, apiUrl: string, audience?: string): MiddlewareHandler {
-  if (!enabled) return async (_context, next) => next()
+  if (!enabled) return async (context, next) => {
+    context.set('principal', { subject: 'local', principalType: 'local', scopes: ['rue:admin'] })
+    return next()
+  }
   const endpoint = `${apiUrl.replace(/\/$/, '')}/v1/token/verify`
   return async (context, next) => {
     if (EXEMPT_PATHS.has(context.req.path)) return next()
@@ -32,9 +36,18 @@ export function keynameAuth(enabled: boolean, apiUrl: string, audience?: string)
     } catch {
       return context.json({ error: 'KEYNAME_AUTH_UNAVAILABLE' }, 503)
     }
-    if (!claims?.subject || (claims.expiresAt && claims.expiresAt <= Date.now())) {
+    const expiresAt = claims?.expiresAt && claims.expiresAt < 1_000_000_000_000
+      ? claims.expiresAt * 1000
+      : claims?.expiresAt
+    if (!claims?.subject || (expiresAt && expiresAt <= Date.now())) {
       return context.json({ error: 'KEYNAME_AUTH_INVALID' }, 401)
     }
+    const principal: AuthPrincipal = {
+      subject: claims.subject,
+      principalType: claims.principalType,
+      scopes: claims.scopes ?? [],
+    }
+    context.set('principal', principal)
     return next()
   }
 }

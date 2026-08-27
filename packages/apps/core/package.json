@@ -22,6 +22,7 @@
     "@hono/zod-openapi": "^1.4.0",
     "@multiterm/rue-db": "workspace:*",
     "@multiterm/rue-trpc": "workspace:*",
+    "@multiterm/rue-tui": "workspace:*",
     "@trpc/server": "catalog:",
     "better-sqlite3": "^11.10.0",
     "hono": "^4.11.0",

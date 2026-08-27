@@ -1,17 +1,15 @@
 # @multiterm/rue-core
 
-The rue server, agentic engine, and CLI in one package — modeled on `packages/opencode` in the opencode reference.
+Rue's authenticated HTTP core, session engine, provider adapters, persistence, realtime event stream, and CLI.
 
-## Status
+Implemented:
 
-Phase 0 of the refactor: scaffold. See `../docs/refactor-plan.md`.
+- Hono/OpenAPI and tRPC endpoints
+- Keyname and local Basic authentication
+- Principal-owned sessions, messages, parts, and tenant-filtered SSE
+- SQLite migrations, legacy import, integrity-checked backup, and configurable data directory
+- Anthropic, OpenRouter, and Ollama adapters
+- Streaming text sessions, compaction, retry recovery, limits, and replayable events
+- `rue serve`, `rue run`, `rue tui`, `rue account`, and `rue db`
 
-## Will contain (per phase)
-
-| Phase | Adds |
-|-------|------|
-| 1 | HTTP server (Hono + zod-openapi), SQLite storage, config, auth (keychain) |
-| 2 | Provider adapters (Anthropic, OpenRouter, Ollama), sessions, `runQuery`, SSE |
-| 3 | Tool registry + built-in tools (read/write/edit/grep/glob/bash/verify/git_checkpoint) |
-| 4 | MCP, notebooks, memory, scope, schedule, skills |
-| 5 | OpenAPI spec generation feeding `@multiterm/rue-sdk` |
+The tool permission/execution layer and advanced MCP, memory, notebook, schedule, and skill routes remain tracked in [`docs/stack-review-and-implementation-plan.md`](../../../docs/stack-review-and-implementation-plan.md).

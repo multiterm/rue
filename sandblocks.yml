@@ -6,21 +6,48 @@ workspace:
   setup: [corepack, pnpm, install, --frozen-lockfile, --config.minimumReleaseAge=0]
 
 tasks:
-  typecheck:
-    command: [corepack, pnpm, exec, rune, typecheck]
-    timeout: 15m
-  test:
-    command: [corepack, pnpm, exec, rune, test]
-    timeout: 15m
-  build:
-    command: [corepack, pnpm, exec, rune, build]
-    timeout: 15m
-    outputs: [packages/apps/core/dist, packages/apps/webapp/dist, packages/apps/docs/dist, packages/apps/site/dist, packages/libs/sdk/dist]
+  quality:
+    command: [corepack, pnpm, exec, rune, quality-static]
+    timeout: 30m
+    inputs: [package.json, pnpm-lock.yaml, pnpm-workspace.yaml, Runefile, packages, quality, scripts, config]
+    outputs: [coverage, packages/apps/core/dist, packages/apps/webapp/dist, packages/apps/docs/dist, packages/apps/site/dist, packages/libs/sdk/dist]
+  quality-fast:
+    command: [corepack, pnpm, exec, rune, quality-fast]
+    timeout: 5m
+    inputs: [package.json, pnpm-lock.yaml, quality]
+    outputs: [coverage]
 
 services:
+  api-hmr:
+    root: packages/apps/core
+    command: [env, KEYNAME_AUTH_ENABLED=true, KEYNAME_API_URL=https://api.keyname.dev, corepack, pnpm, exec, tsx, watch, src/bin.ts, serve, --hostname, 0.0.0.0, --port, "4097"]
+    port: 4097
+    health: /health
+    resources: { memory: 1g, cpus: "1" }
+  webapp-hmr:
+    root: packages/apps/webapp
+    command: "VITE_RUE_API_URL=$SANDBLOCKS_SERVICE_API_HMR_URL corepack pnpm exec vite --host 0.0.0.0 --port 4173 --strictPort"
+    port: 4173
+    health: /
+    dependsOn: [api-hmr]
+    resources: { memory: 512m, cpus: "0.5" }
+  site-hmr:
+    root: packages/apps/site
+    command: "VITE_RUE_API_URL=$SANDBLOCKS_SERVICE_API_HMR_URL corepack pnpm exec vite --host 0.0.0.0 --port 4174 --strictPort"
+    port: 4174
+    health: /
+    dependsOn: [api-hmr]
+    resources: { memory: 512m, cpus: "0.5" }
+  docs-hmr:
+    root: packages/apps/docs
+    command: "VITE_RUE_API_URL=$SANDBLOCKS_SERVICE_API_HMR_URL corepack pnpm exec vite --host 0.0.0.0 --port 4175 --strictPort"
+    port: 4175
+    health: /
+    dependsOn: [api-hmr]
+    resources: { memory: 512m, cpus: "0.5" }
   api:
     root: packages/apps/core
-    command: [env, KEYNAME_AUTH_ENABLED=true, KEYNAME_API_URL=https://api.keyname.dev, node, dist/bin.js, serve, --hostname, 0.0.0.0, --port, "4097"]
+    command: [env, KEYNAME_AUTH_ENABLED=true, KEYNAME_REQUIRE_AUDIENCE=true, KEYNAME_API_URL=https://api.keyname.dev, node, dist/bin.js, serve, --hostname, 0.0.0.0, --port, "4097"]
     port: 4097
     health: /health
     resources: { memory: 1g, cpus: "1" }
@@ -29,38 +56,54 @@ services:
     command: [node, ../../../scripts/serve-static.mjs, dist, "4173"]
     port: 4173
     health: /
+    dependsOn: [api]
     resources: { memory: 512m, cpus: "0.5" }
   site:
     root: packages/apps/site
     command: [node, ../../../scripts/serve-static.mjs, dist, "4174"]
     port: 4174
     health: /
+    dependsOn: [api]
     resources: { memory: 512m, cpus: "0.5" }
   docs:
     root: packages/apps/docs
     command: [node, ../../../scripts/serve-static.mjs, dist, "4175"]
     port: 4175
     health: /
+    dependsOn: [api]
     resources: { memory: 512m, cpus: "0.5" }
 
 checks:
-  health:
-    image: node:22-bookworm-slim
-    command: [node, -e, "fetch(new URL('/health',process.env.SANDBLOCKS_SERVICE_API_URL)).then(r=>{if(!r.ok)process.exit(1)})"]
+  api-browser:
+    image: ./docker/images/Dockerfile.sandblocks-e2e
+    command: [npx, playwright, test, api.app.playwright.ts, --config, quality/playwright.config.ts]
+    timeout: 2m
+  webapp-browser:
+    image: ./docker/images/Dockerfile.sandblocks-e2e
+    command: [npx, playwright, test, webapp.app.playwright.ts, --config, quality/playwright.config.ts]
+    timeout: 2m
+  site-browser:
+    image: ./docker/images/Dockerfile.sandblocks-e2e
+    command: [npx, playwright, test, site.app.playwright.ts, --config, quality/playwright.config.ts]
+    timeout: 2m
+  docs-browser:
+    image: ./docker/images/Dockerfile.sandblocks-e2e
+    command: [npx, playwright, test, docs.app.playwright.ts, --config, quality/playwright.config.ts]
+    timeout: 2m
 
 environments:
+  develop:
+    pipeline: [quality-fast]
+    services: [api-hmr, webapp-hmr, site-hmr, docs-hmr]
+    checks: [api-browser, webapp-browser, site-browser, docs-browser]
+    routing: { sso: false }
   preview:
-    pipeline: [build, typecheck, test]
+    pipeline: [quality]
     services: [api, webapp, site, docs]
-    checks: [health]
+    checks: [api-browser, webapp-browser, site-browser, docs-browser]
     routing: { sso: false }
-  development:
-    pipeline: [build, typecheck, test]
+  production:
+    pipeline: [quality]
     services: [api, webapp, site, docs]
-    checks: [health]
-    routing: { sso: false }
-  prod:
-    pipeline: [build, typecheck, test]
-    services: [api, webapp, site, docs]
-    checks: [health]
+    checks: [api-browser, webapp-browser, site-browser, docs-browser]
     routing: { sso: false }

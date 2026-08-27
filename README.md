@@ -20,7 +20,7 @@ packages/libs/sdk        public @multiterm/rue-sdk package
 packages/libs/ui         shared shadcn-style React components
 ```
 
-The repository follows the Multiterm/Honeycluster package layout and includes the Sandblocks v2 deployment contract in [`sandblocks.yml`](./sandblocks.yml). Web surfaces standardize on TanStack Router, Query, and Form with tRPC; server persistence exposes a Drizzle ORM facade over the existing SQLite connection.
+The repository follows the Multiterm/Honeycluster package layout and includes the Sandblocks v2 deployment contract in [`sandblocks.yml`](./sandblocks.yml). Web surfaces standardize on TanStack Router, Query, and Form with tRPC; server persistence exposes a Drizzle ORM facade over the existing SQLite connection. [`docs/architecture.md`](./docs/architecture.md) is the authoritative architecture record.
 
 ## Development
 
@@ -47,4 +47,4 @@ pnpm exec rune release-dry
 pnpm exec rune release
 ```
 
-`develop` publishes beta versions and deploys Sandblocks `preview`; `main` publishes the `latest` npm channel and deploys Sandblocks `prod`. Install the branch-aware background hook with `pnpm exec rune sandblocks-hooks-install`. The public SDK is [`@multiterm/rue-sdk`](./packages/libs/sdk).
+Sandblocks-reserved branches map `develop` → HMR `develop`, `pre` → immutable `preview`, and `prod` → immutable `production`; ordinary feature and release branches never deploy. Install the branch-aware background and local quality hooks with `pnpm exec rune sandblocks-hooks-install`. Quality gates run locally and inside Sandblocks without depending on GitHub Actions. The public SDK is [`@multiterm/rue-sdk`](./packages/libs/sdk).

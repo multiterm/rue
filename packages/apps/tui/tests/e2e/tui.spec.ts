@@ -1,3 +1,5 @@
 import {expect,test} from '@playwright/test'
-import {createTuiScreen,RUE_TUI_THEMES} from '../../src/index.js'
+import {PassThrough,Readable} from 'node:stream'
+import {createTuiScreen,RUE_TUI_THEMES,runTui} from '../../src/index.js'
 test('terminal UI exposes the shared Rue layout and palette',()=>{const screen=createTuiScreen({sessionCount:3,connected:true});expect(screen).toContain('Rue');expect(screen).toContain('3 sessions');expect(screen).toContain('Connected');expect(RUE_TUI_THEMES.dark.primary).toBe('#8df0b2')})
+test('terminal client creates a session and completes a prompt',async()=>{const original=globalThis.fetch;const calls:string[]=[];globalThis.fetch=async(input,init)=>{const url=String(input);calls.push(`${init?.method??'GET'} ${new URL(url).pathname}`);if(url.endsWith('/session')&&!init?.method)return new Response('[]',{status:200});if(url.endsWith('/session'))return Response.json({id:'ses_1',title:'hello'});return Response.json({text:'world',stopReason:'completed'})};const output=new PassThrough();let rendered='';output.on('data',(chunk)=>rendered+=String(chunk));try{await runTui({baseUrl:'https://rue.test',input:Readable.from(['hello\n/exit\n']),output})}finally{globalThis.fetch=original}expect(calls).toEqual(['GET /session','POST /session','POST /session/ses_1/message']);expect(rendered).toContain('world')})

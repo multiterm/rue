@@ -8,6 +8,7 @@
     "@playwright/test": "catalog:",
     "@types/node": "catalog:",
     "electron": "^41.0.2",
+    "electron-builder": "^26.15.3",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

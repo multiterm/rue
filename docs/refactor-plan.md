@@ -1,10 +1,10 @@
 # Rue → Opencode-Style Re-Architecture
 
-Status: **Approved** — Phase 0 in progress.
+Status: **Historical plan — superseded by [`architecture.md`](./architecture.md).**
 Owner: Rue team.
-Last updated: 2026-05-21.
+Last updated: 2026-08-27.
 
-This document is the source of truth for the rue re-architecture. It supersedes any older intent expressed in `core/README.md`, `cli/README.md`, `webapp/README.md`, `mobile/README.md`, and the "step 2 of the restructure" notes that predate it.
+This document preserves the original opencode-style re-architecture proposal. The implemented React/TanStack/tRPC architecture and current delivery decisions are defined in `architecture.md`; references below to SolidJS, OpenTUI, and phase-zero status are no longer authoritative.
 
 ---
 

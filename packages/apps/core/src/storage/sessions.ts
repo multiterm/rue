@@ -10,6 +10,7 @@ interface RawSessionRow {
   directory: string | null
   scopes: string
   parent_id: string | null
+  owner_subject: string
   created_at: number
   updated_at: number
   meta: string
@@ -25,6 +26,7 @@ function fromRaw(r: RawSessionRow): SessionRow {
     directory: r.directory,
     scopes: JSON.parse(r.scopes) as string[],
     parentId: r.parent_id,
+    ownerSubject: r.owner_subject,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     meta: JSON.parse(r.meta) as Record<string, unknown>,
@@ -42,14 +44,15 @@ export function createSession(
     directory?: string | null
     scopes?: string[]
     parentId?: string | null
+    ownerSubject?: string
     meta?: Record<string, unknown>
   },
 ): SessionRow {
   const now = Date.now()
   db.prepare(
     `INSERT INTO sessions
-       (id, title, agent, provider, model, directory, scopes, parent_id, created_at, updated_at, meta)
-     VALUES (@id, @title, @agent, @provider, @model, @directory, @scopes, @parent_id, @created_at, @updated_at, @meta)`,
+       (id, title, agent, provider, model, directory, scopes, parent_id, owner_subject, created_at, updated_at, meta)
+     VALUES (@id, @title, @agent, @provider, @model, @directory, @scopes, @parent_id, @owner_subject, @created_at, @updated_at, @meta)`,
   ).run({
     id: input.id,
     title: input.title ?? '',
@@ -59,24 +62,25 @@ export function createSession(
     directory: input.directory ?? null,
     scopes: JSON.stringify(input.scopes ?? []),
     parent_id: input.parentId ?? null,
+    owner_subject: input.ownerSubject ?? 'local',
     created_at: now,
     updated_at: now,
     meta: JSON.stringify(input.meta ?? {}),
   })
-  return getSession(db, input.id)!
+  return getSession(db, input.id, input.ownerSubject ?? 'local')!
 }
 
-export function getSession(db: Database, id: string): SessionRow | undefined {
+export function getSession(db: Database, id: string, ownerSubject = 'local'): SessionRow | undefined {
   const row = db
-    .prepare('SELECT * FROM sessions WHERE id = ?')
-    .get(id) as RawSessionRow | undefined
+    .prepare('SELECT * FROM sessions WHERE id = ? AND owner_subject = ?')
+    .get(id, ownerSubject) as RawSessionRow | undefined
   return row ? fromRaw(row) : undefined
 }
 
-export function listSessions(db: Database, limit = 100): SessionRow[] {
+export function listSessions(db: Database, limit = 100, ownerSubject = 'local'): SessionRow[] {
   const rows = db
-    .prepare('SELECT * FROM sessions ORDER BY updated_at DESC LIMIT ?')
-    .all(limit) as RawSessionRow[]
+    .prepare('SELECT * FROM sessions WHERE owner_subject = ? ORDER BY updated_at DESC LIMIT ?')
+    .all(ownerSubject, limit) as RawSessionRow[]
   return rows.map(fromRaw)
 }
 
@@ -95,14 +99,15 @@ export function updateSession(
       | 'meta'
     >
   >,
+  ownerSubject = 'local',
 ): SessionRow | undefined {
-  const existing = getSession(db, id)
+  const existing = getSession(db, id, ownerSubject)
   if (!existing) return undefined
   const next = { ...existing, ...patch }
   db.prepare(
     `UPDATE sessions
         SET title = ?, agent = ?, provider = ?, model = ?, directory = ?, scopes = ?, meta = ?, updated_at = ?
-      WHERE id = ?`,
+      WHERE id = ? AND owner_subject = ?`,
   ).run(
     next.title,
     next.agent,
@@ -113,11 +118,12 @@ export function updateSession(
     JSON.stringify(next.meta),
     Date.now(),
     id,
+    ownerSubject,
   )
-  return getSession(db, id)
+  return getSession(db, id, ownerSubject)
 }
 
-export function deleteSession(db: Database, id: string): boolean {
-  const result = db.prepare('DELETE FROM sessions WHERE id = ?').run(id)
+export function deleteSession(db: Database, id: string, ownerSubject = 'local'): boolean {
+  const result = db.prepare('DELETE FROM sessions WHERE id = ? AND owner_subject = ?').run(id, ownerSubject)
   return result.changes > 0
 }

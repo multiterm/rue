@@ -1,5 +1,5 @@
-import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, mkdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { homedir } from 'node:os'
 import type { CommandModule } from 'yargs'
 import { Paths } from '../global/paths.js'
@@ -32,6 +32,25 @@ const migrateLegacy: CommandModule<unknown, MigrateLegacyArgs> = {
   },
 }
 
+const backup: CommandModule<unknown, { to?: string }> = {
+  command: 'backup',
+  describe: 'Create a consistent SQLite backup before deployment or migration',
+  builder: (y) => y.option('to', { type: 'string', describe: 'Backup destination path' }),
+  handler: async (argv) => {
+    const destination = argv.to ?? join(Paths.data, 'backups', `rue-${new Date().toISOString().replaceAll(':', '-')}.db`)
+    mkdirSync(dirname(destination), { recursive: true })
+    const db = openDatabase()
+    try {
+      await db.backup(destination)
+      const integrity = db.pragma('integrity_check', { simple: true })
+      if (integrity !== 'ok') throw new Error(`database integrity check failed: ${String(integrity)}`)
+    } finally {
+      db.close()
+    }
+    process.stdout.write(`${destination}\n`)
+  },
+}
+
 const info: CommandModule = {
   command: 'info',
   describe: 'Print database paths and apply pending migrations',
@@ -57,6 +76,7 @@ export const dbCommand: CommandModule = {
   builder: (y) =>
     y
       .command(info)
+      .command(backup)
       .command(migrateLegacy)
       .demandCommand(1)
       .strict(),

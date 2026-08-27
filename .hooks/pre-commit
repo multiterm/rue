@@ -1,0 +1,7 @@
+#!/bin/sh
+# rue-local-quality-pre-commit
+set -eu
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+[ "${RUE_SKIP_QUALITY:-0}" = "1" ] && { echo "Rue quality pre-commit skipped"; exit 0; }
+pnpm exec rune quality-fast

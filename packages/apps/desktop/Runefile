@@ -1,5 +1,6 @@
 dev: RUE_WEBAPP_URL=http://localhost:5173 electron dist/index.js
-build: tsc -p tsconfig.json
+build: pnpm --filter @multiterm/rue-webapp exec rune build && tsc -p tsconfig.json
+package: rune build && electron-builder --config electron-builder.yml
 start: electron dist/index.js
 typecheck: tsc -p tsconfig.json --noEmit
 test: vitest run --passWithNoTests --exclude "tests/e2e/**"

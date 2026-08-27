@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
+import { getSession } from '../../storage/index.js'
 import type { ServerContext } from '../context.js'
 
 /**
@@ -16,12 +17,24 @@ export function eventRoutes(): Hono<{ Variables: { ctx: ServerContext } }> {
   const app = new Hono<{ Variables: { ctx: ServerContext } }>()
   app.get('/event', (c) =>
     streamSSE(c, async (stream) => {
+      const principalSubject = c.get('principal').subject
+      const visible = (event: { payload: unknown }) => {
+        const payload = event.payload as { sessionId?: string }
+        return !payload.sessionId || Boolean(getSession(c.var.ctx.db, payload.sessionId, principalSubject))
+      }
+      const write = (event: { id: number; type: string; time: number; payload: unknown }) => stream.writeSSE({
+        id: String(event.id),
+        event: event.type,
+        data: JSON.stringify({ id: event.id, type: event.type, time: event.time, payload: event.payload }),
+      })
+      const lastEventId = Number(c.req.header('last-event-id') ?? 0)
+      if (Number.isSafeInteger(lastEventId) && lastEventId > 0) {
+        for (const event of c.var.ctx.bus.historySince(lastEventId)) if (visible(event)) await write(event)
+      }
       const unsubscribe = c.var.ctx.bus.subscribe((event) => {
+        if (!visible(event)) return
         // Fire-and-forget; SSE writes are buffered.
-        void stream.writeSSE({
-          event: event.type,
-          data: JSON.stringify({ type: event.type, time: event.time, payload: event.payload }),
-        })
+        void write(event)
       })
       // Initial hello event so clients know the stream is alive.
       await stream.writeSSE({

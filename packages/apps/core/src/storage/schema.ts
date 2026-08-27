@@ -97,4 +97,12 @@ export const MIGRATIONS: ReadonlyArray<{ id: number; name: string; sql: string }
       );
     `,
   },
+  {
+    id: 2,
+    name: 'session_ownership',
+    sql: `
+      ALTER TABLE sessions ADD COLUMN owner_subject TEXT NOT NULL DEFAULT 'local';
+      CREATE INDEX idx_sessions_owner_updated ON sessions(owner_subject, updated_at DESC);
+    `,
+  },
 ]
