@@ -10,10 +10,17 @@
 
 import { createRequire } from 'node:module'
 
+interface KeytarModule {
+  getPassword(service: string, account: string): Promise<string | null>
+  setPassword(service: string, account: string, password: string): Promise<void>
+  deletePassword(service: string, account: string): Promise<boolean>
+  findCredentials(service: string): Promise<Array<{ account: string; password: string }>>
+}
+
 const require = createRequire(import.meta.url)
-let keytar: typeof import('keytar') | undefined
+let keytar: KeytarModule | undefined
 try {
-  keytar = require('keytar') as typeof import('keytar')
+  keytar = require('keytar') as KeytarModule
 } catch {
   // Native keytar is optional on headless Linux/Sandblocks images.
 }

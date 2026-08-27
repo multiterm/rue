@@ -26,11 +26,13 @@
     "@trpc/server": "catalog:",
     "better-sqlite3": "^11.10.0",
     "hono": "^4.11.0",
-    "keytar": "^7.9.0",
     "tsx": "catalog:",
     "xdg-basedir": "^5.1.0",
     "yargs": "^17.7.0",
     "zod": "catalog:"
+  },
+  "optionalDependencies": {
+    "keytar": "^7.9.0"
   },
   "devDependencies": {
     "@playwright/test": "catalog:",
