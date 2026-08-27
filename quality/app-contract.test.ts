@@ -9,6 +9,7 @@ describe('Rue application quality contracts',()=>{
   it('resolves defaults, stable routes, and deployment overrides',()=>{
     for(const app of APP_CONTRACTS){
       expect(new URL(resolveAppUrl(app)).protocol).toBe('https:')
+      expect(resolveAppUrl(app,{})).toBe(new URL(app.path,`${app.defaultUrl}/`).toString())
       expect(resolveAppUrl(app,{[app.stableEnvKey]:'https://stable.example/root/'})).toBe(`https://stable.example${app.path}`)
       expect(resolveAppUrl(app,{[app.hmrEnvKey]:'https://hmr.example/root/'})).toBe(`https://hmr.example${app.path}`)
       expect(resolveAppUrl(app,{[app.envKey]:'https://preview.example/root/',[app.hmrEnvKey]:'https://hmr.example'})).toBe(`https://preview.example${app.path}`)
