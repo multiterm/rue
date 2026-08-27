@@ -23,55 +23,55 @@ services:
     command: [env, KEYNAME_AUTH_ENABLED=true, KEYNAME_API_URL=https://api.keyname.dev, corepack, pnpm, exec, tsx, watch, src/bin.ts, serve, --hostname, 0.0.0.0, --port, "4097"]
     port: 4097
     health: /health
-    resources: { memory: 1g, cpus: "1" }
+    resources: { memory: 512m, cpus: "1" }
   webapp-hmr:
     root: packages/apps/webapp
     command: "VITE_RUE_API_URL=$SANDBLOCKS_SERVICE_API_HMR_URL corepack pnpm exec vite --host 0.0.0.0 --port 4173 --strictPort"
     port: 4173
     health: /
     dependsOn: [api-hmr]
-    resources: { memory: 512m, cpus: "0.5" }
+    resources: { memory: 256m, cpus: "0.5" }
   site-hmr:
     root: packages/apps/site
     command: "VITE_RUE_API_URL=$SANDBLOCKS_SERVICE_API_HMR_URL corepack pnpm exec vite --host 0.0.0.0 --port 4174 --strictPort"
     port: 4174
     health: /
     dependsOn: [api-hmr]
-    resources: { memory: 512m, cpus: "0.5" }
+    resources: { memory: 256m, cpus: "0.5" }
   docs-hmr:
     root: packages/apps/docs
     command: "VITE_RUE_API_URL=$SANDBLOCKS_SERVICE_API_HMR_URL corepack pnpm exec vite --host 0.0.0.0 --port 4175 --strictPort"
     port: 4175
     health: /
     dependsOn: [api-hmr]
-    resources: { memory: 512m, cpus: "0.5" }
+    resources: { memory: 256m, cpus: "0.5" }
   api:
     root: packages/apps/core
     command: [env, KEYNAME_AUTH_ENABLED=true, KEYNAME_REQUIRE_AUDIENCE=true, KEYNAME_API_URL=https://api.keyname.dev, node, dist/bin.js, serve, --hostname, 0.0.0.0, --port, "4097"]
     port: 4097
     health: /health
-    resources: { memory: 1g, cpus: "1" }
+    resources: { memory: 512m, cpus: "1" }
   webapp:
     root: packages/apps/webapp
     command: [node, ../../../scripts/serve-static.mjs, dist, "4173"]
     port: 4173
     health: /
     dependsOn: [api]
-    resources: { memory: 512m, cpus: "0.5" }
+    resources: { memory: 256m, cpus: "0.5" }
   site:
     root: packages/apps/site
     command: [node, ../../../scripts/serve-static.mjs, dist, "4174"]
     port: 4174
     health: /
     dependsOn: [api]
-    resources: { memory: 512m, cpus: "0.5" }
+    resources: { memory: 256m, cpus: "0.5" }
   docs:
     root: packages/apps/docs
     command: [node, ../../../scripts/serve-static.mjs, dist, "4175"]
     port: 4175
     health: /
     dependsOn: [api]
-    resources: { memory: 512m, cpus: "0.5" }
+    resources: { memory: 256m, cpus: "0.5" }
 
 checks:
   api-browser:
