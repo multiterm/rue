@@ -31,7 +31,7 @@ services:
       health: /health
     port: 4097
     health: /health
-    resources: { memory: 512m, cpus: "1" }
+    resources: { memory: 1g, cpus: "1" }
   webapp:
     root: packages/apps/webapp
     command: [node, ../../../scripts/serve-static.mjs, dist, "4173"]
@@ -39,7 +39,7 @@ services:
     port: 4173
     health: /
     dependsOn: [api]
-    resources: { memory: 256m, cpus: "0.5" }
+    resources: { memory: 512m, cpus: "0.5" }
   site:
     root: packages/apps/site
     command: [node, ../../../scripts/serve-static.mjs, dist, "4174"]
@@ -47,7 +47,7 @@ services:
     port: 4174
     health: /
     dependsOn: [api]
-    resources: { memory: 256m, cpus: "0.5" }
+    resources: { memory: 512m, cpus: "0.5" }
   docs:
     root: packages/apps/docs
     command: [node, ../../../scripts/serve-static.mjs, dist, "4175"]
@@ -55,7 +55,7 @@ services:
     port: 4175
     health: /
     dependsOn: [api]
-    resources: { memory: 256m, cpus: "0.5" }
+    resources: { memory: 512m, cpus: "0.5" }
 
 checks:
   api-browser:
