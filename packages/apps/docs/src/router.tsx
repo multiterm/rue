@@ -1,5 +1,4 @@
 import {createRootRoute,createRoute,createRouter} from '@tanstack/react-router'
-import {createRueTrpcClient} from '@multiterm/rue-trpc/client'
 import {DocsLayout} from './components/DocsLayout'
 import {MarkdownPage} from './components/MarkdownPage'
 import introduction from './content/introduction.md?raw'
@@ -8,7 +7,7 @@ import designSystem from './content/design-system.md?raw'
 import deployment from './content/deployment.md?raw'
 import {app} from './app'
 export const pages={'/':introduction,'/authentication':authentication,'/design-system':designSystem,'/deployment':deployment} as const
-export const trpc=createRueTrpcClient({baseUrl:app.urls.api})
+export const checkHealth=async()=>{const response=await fetch(`${app.urls.api}/health`);if(!response.ok)throw new Error(`Rue health failed (${response.status})`);return response.json()}
 const root=createRootRoute({component:DocsLayout})
 const introductionRoute=createRoute({getParentRoute:()=>root,path:'/',component:()=> <MarkdownPage source={introduction}/>})
 const authenticationRoute=createRoute({getParentRoute:()=>root,path:'/authentication',component:()=> <MarkdownPage source={authentication}/>})
