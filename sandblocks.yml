@@ -18,42 +18,19 @@ tasks:
     outputs: [coverage]
 
 services:
-  api-hmr:
-    root: packages/apps/core
-    command: [env, KEYNAME_AUTH_ENABLED=true, KEYNAME_API_URL=https://api.keyname.dev, corepack, pnpm, exec, tsx, watch, src/bin.ts, serve, --hostname, 0.0.0.0, --port, "4097"]
-    port: 4097
-    health: /health
-    resources: { memory: 512m, cpus: "1" }
-  webapp-hmr:
-    root: packages/apps/webapp
-    command: "VITE_RUE_API_URL=$SANDBLOCKS_SERVICE_API_HMR_URL corepack pnpm exec vite --host 0.0.0.0 --port 4173 --strictPort"
-    port: 4173
-    health: /
-    dependsOn: [api-hmr]
-    resources: { memory: 256m, cpus: "0.5" }
-  site-hmr:
-    root: packages/apps/site
-    command: "VITE_RUE_API_URL=$SANDBLOCKS_SERVICE_API_HMR_URL corepack pnpm exec vite --host 0.0.0.0 --port 4174 --strictPort"
-    port: 4174
-    health: /
-    dependsOn: [api-hmr]
-    resources: { memory: 256m, cpus: "0.5" }
-  docs-hmr:
-    root: packages/apps/docs
-    command: "VITE_RUE_API_URL=$SANDBLOCKS_SERVICE_API_HMR_URL corepack pnpm exec vite --host 0.0.0.0 --port 4175 --strictPort"
-    port: 4175
-    health: /
-    dependsOn: [api-hmr]
-    resources: { memory: 256m, cpus: "0.5" }
   api:
     root: packages/apps/core
     command: [env, KEYNAME_AUTH_ENABLED=true, KEYNAME_REQUIRE_AUDIENCE=true, KEYNAME_API_URL=https://api.keyname.dev, node, dist/bin.js, serve, --hostname, 0.0.0.0, --port, "4097"]
+    development:
+      command: [env, KEYNAME_AUTH_ENABLED=true, KEYNAME_API_URL=https://api.keyname.dev, corepack, pnpm, exec, tsx, watch, src/bin.ts, serve, --hostname, 0.0.0.0, --port, "4097"]
+      health: /health
     port: 4097
     health: /health
     resources: { memory: 512m, cpus: "1" }
   webapp:
     root: packages/apps/webapp
     command: [node, ../../../scripts/serve-static.mjs, dist, "4173"]
+    development: { command: [corepack, pnpm, exec, vite, --host, 0.0.0.0, --port, "4173", --strictPort], health: / }
     port: 4173
     health: /
     dependsOn: [api]
@@ -61,6 +38,7 @@ services:
   site:
     root: packages/apps/site
     command: [node, ../../../scripts/serve-static.mjs, dist, "4174"]
+    development: { command: [corepack, pnpm, exec, vite, --host, 0.0.0.0, --port, "4174", --strictPort], health: / }
     port: 4174
     health: /
     dependsOn: [api]
@@ -68,6 +46,7 @@ services:
   docs:
     root: packages/apps/docs
     command: [node, ../../../scripts/serve-static.mjs, dist, "4175"]
+    development: { command: [corepack, pnpm, exec, vite, --host, 0.0.0.0, --port, "4175", --strictPort], health: / }
     port: 4175
     health: /
     dependsOn: [api]
@@ -77,32 +56,53 @@ checks:
   api-browser:
     image: ./docker/images/Dockerfile.sandblocks-e2e
     command: [npx, playwright, test, api.app.playwright.ts, --config, quality/playwright.config.ts]
+    application: api
+    profile: smoke
+    inputs: [packages/apps/core, packages/libs/db, packages/libs/trpc, quality]
     timeout: 2m
   webapp-browser:
     image: ./docker/images/Dockerfile.sandblocks-e2e
     command: [npx, playwright, test, webapp.app.playwright.ts, --config, quality/playwright.config.ts]
+    application: webapp
+    profile: smoke
+    inputs: [packages/apps/webapp, packages/libs/auth, packages/libs/config, packages/libs/sdk, packages/libs/ui, quality]
     timeout: 2m
   site-browser:
     image: ./docker/images/Dockerfile.sandblocks-e2e
     command: [npx, playwright, test, site.app.playwright.ts, --config, quality/playwright.config.ts]
+    application: site
+    profile: smoke
+    inputs: [packages/apps/site, packages/libs/config, packages/libs/ui, quality]
     timeout: 2m
   docs-browser:
     image: ./docker/images/Dockerfile.sandblocks-e2e
     command: [npx, playwright, test, docs.app.playwright.ts, --config, quality/playwright.config.ts]
+    application: docs
+    profile: smoke
+    inputs: [packages/apps/docs, packages/libs/config, packages/libs/ui, quality]
     timeout: 2m
 
 environments:
   develop:
+    mode: development
+    branches: [develop]
+    checkProfile: smoke
     pipeline: [quality-fast]
-    services: [api-hmr, webapp-hmr, site-hmr, docs-hmr]
+    services: [api, webapp, site, docs]
     checks: [api-browser, webapp-browser, site-browser, docs-browser]
     routing: { sso: false }
   preview:
+    mode: immutable
+    branches: [pre]
+    checkProfile: full
     pipeline: [quality]
     services: [api, webapp, site, docs]
     checks: [api-browser, webapp-browser, site-browser, docs-browser]
     routing: { sso: false }
   production:
+    mode: immutable
+    branches: [prod]
+    checkProfile: full
     pipeline: [quality]
     services: [api, webapp, site, docs]
     checks: [api-browser, webapp-browser, site-browser, docs-browser]

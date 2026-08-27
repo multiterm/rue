@@ -90,11 +90,11 @@ importers:
         specifier: 'catalog:'
         version: 1.62.1
       '@sandblocks/cli':
-        specifier: 0.5.0-b.27
-        version: 0.5.0-b.27
+        specifier: 0.5.0-b.31
+        version: 0.5.0-b.31
       '@sandblocks/sdk':
-        specifier: 0.5.0-b.27
-        version: 0.5.0-b.27
+        specifier: 0.5.0-b.31
+        version: 0.5.0-b.31
       '@types/node':
         specifier: ^25.8.0
         version: 25.9.5
@@ -1914,13 +1914,13 @@ packages:
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
-  '@sandblocks/cli@0.5.0-b.27':
-    resolution: {integrity: sha512-ak+KQe6AJXWh18b2qNLEQtGuxFYIzUW7hKMWtse6Roc0PksOlJaVydTa5gtHEhDrmxbnwlb+J32gbiqxv2KnFQ==}
+  '@sandblocks/cli@0.5.0-b.31':
+    resolution: {integrity: sha512-VMiRnd4/F22lAs6r5YshO6Z8sOM6zxF5Pt4ZTHEaerZvAq9R/yx9OlvYiQ21w2LBiLUW/uGlOTh6LJQcB1KjEw==}
     engines: {bun: '>=1.1.0'}
     hasBin: true
 
-  '@sandblocks/sdk@0.5.0-b.27':
-    resolution: {integrity: sha512-njcyzWmd0SA7YlcCbMrxjw5HAByIrkS2SJh/kZiKCu3mYm6Dob2m6NFpa7TYjuDfsMw9OX44P5eejbZjGpccyw==}
+  '@sandblocks/sdk@0.5.0-b.31':
+    resolution: {integrity: sha512-hMSXmpcm5JoIy7Pt0LfsNJ5/DU/tHwA1ZqdwPNTIXkQWhD09efYJStqbldECsmGjXaMJm4Pkn9Fvsxc9WiYZwg==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -6938,9 +6938,9 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
-  '@sandblocks/cli@0.5.0-b.27': {}
+  '@sandblocks/cli@0.5.0-b.31': {}
 
-  '@sandblocks/sdk@0.5.0-b.27': {}
+  '@sandblocks/sdk@0.5.0-b.31': {}
 
   '@sinclair/typebox@0.27.12': {}
 
