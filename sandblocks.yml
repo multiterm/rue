@@ -3,7 +3,7 @@ name: multiterm-rue
 
 workspace:
   image: node:22-bookworm
-  setup: [corepack, pnpm, install, --frozen-lockfile, --config.minimumReleaseAge=0]
+  setup: [corepack, pnpm, install, --frozen-lockfile, --no-optional, --config.minimumReleaseAge=0]
 
 tasks:
   quality:
