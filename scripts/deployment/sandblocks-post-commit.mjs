@@ -12,7 +12,7 @@ if(git(['status','--porcelain'])){console.log(`sandblocks post-commit skipped: w
 const sandblocks=join(root,'node_modules/.bin/sandblocks')
 if(!existsSync(sandblocks)){console.log('sandblocks post-commit skipped: install dependencies first');process.exit(0)}
 const stateFile=join(root,`.sandblocks/sandbox-${environment}.json`)
-const command=existsSync(stateFile)?'redeploy':'up'
+const command=existsSync(stateFile)?(environment==='develop'?'sync':'redeploy'):'up'
 const logDir=join(root,'.sandblocks/logs');await mkdir(logDir,{recursive:true,mode:0o700})
 const logPath=join(logDir,`post-commit-${branch}-${Date.now()}.log`);const log=await open(logPath,'a',0o600)
 const localEnv=readEnv(join(root,'.sandblocks/config.env'))
