@@ -6,6 +6,11 @@ workspace:
   setup: [corepack, pnpm, install, --frozen-lockfile, --config.minimumReleaseAge=0]
 
 tasks:
+  build-libs:
+    command: [corepack, pnpm, --filter, "./packages/libs/**", -r, exec, rune, build]
+    timeout: 10m
+    inputs: [package.json, pnpm-lock.yaml, packages/libs]
+    outputs: [packages/libs/auth/dist, packages/libs/config/dist, packages/libs/db/dist, packages/libs/gds/dist, packages/libs/sdk/dist, packages/libs/trpc/dist, packages/libs/ui/dist]
   quality:
     command: [corepack, pnpm, exec, rune, quality-static]
     timeout: 30m
@@ -87,7 +92,7 @@ environments:
     mode: development
     branches: [develop]
     checkProfile: smoke
-    pipeline: [quality-fast]
+    pipeline: [build-libs, quality-fast]
     services: [api, webapp, site, docs]
     checks: [api-browser, webapp-browser, site-browser, docs-browser]
     routing: { sso: false }
