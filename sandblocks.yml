@@ -100,7 +100,7 @@ environments:
     mode: immutable
     branches: [pre]
     checkProfile: full
-    pipeline: [quality]
+    pipeline: [build-libs, quality]
     services: [api, webapp, site, docs]
     checks: [api-browser, webapp-browser, site-browser, docs-browser]
     routing: { sso: false }
@@ -108,7 +108,7 @@ environments:
     mode: immutable
     branches: [prod]
     checkProfile: full
-    pipeline: [quality]
+    pipeline: [build-libs, quality]
     services: [api, webapp, site, docs]
     checks: [api-browser, webapp-browser, site-browser, docs-browser]
     routing: { sso: false }
