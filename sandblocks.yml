@@ -25,7 +25,7 @@ tasks:
 services:
   api:
     root: packages/apps/core
-    command: [env, KEYNAME_AUTH_ENABLED=true, KEYNAME_REQUIRE_AUDIENCE=true, KEYNAME_API_URL=https://api.keyname.dev, node, dist/bin.js, serve, --hostname, 0.0.0.0, --port, "4097"]
+    command: [env, KEYNAME_AUTH_ENABLED=true, KEYNAME_REQUIRE_AUDIENCE=true, KEYNAME_API_URL=https://api.keyname.dev, KEYNAME_CLIENT_ID=knc_-3y7VPz-x-mHHz1kXyMvTBVW, node, dist/bin.js, serve, --hostname, 0.0.0.0, --port, "4097"]
     development:
       command: [env, COREPACK_HOME=/tmp/corepack, KEYNAME_AUTH_ENABLED=true, KEYNAME_API_URL=https://api.keyname.dev, KEYNAME_CLIENT_ID=knc_-3y7VPz-x-mHHz1kXyMvTBVW, corepack, pnpm, exec, tsx, watch, src/bin.ts, serve, --hostname, 0.0.0.0, --port, "4097"]
       health: /health
