@@ -10,6 +10,12 @@ export interface UpdateSessionInput extends CreateSessionInput {}
 export interface SendMessageInput { text:string; provider?:string; model?:string; systemPrompt?:string; wait?:boolean }
 export interface SendMessageResult { userMessageId:string; assistantMessageId:string; text?:string; stopReason?:string }
 export interface RueEvent<T=Record<string,unknown>> { id:number; type:string; time:number; payload:T }
+export type RueDevicePlatform='web'|'desktop'|'ios'|'android'|'terminal'
+export interface RueDevice {id:string;ownerSubject:string;name:string;platform:RueDevicePlatform;createdAt:number;lastSeenAt:number;revokedAt:number|null}
+export interface RuePairing {id:string;token:string;code:string;expiresAt:number}
+export interface RuePairingStatus {id:string;expiresAt:number;claimedAt:number|null;claimedDeviceId:string|null}
+export interface RuePreference {key:string;value:unknown;version:number;updatedAt:number;updatedByDevice:string|null}
+export interface RueDeviceInput {deviceId:string;name:string;platform:RueDevicePlatform}
 
 export function createRueClient(options:RueClientOptions){
   const requestFetch=options.fetch??globalThis.fetch
@@ -25,6 +31,14 @@ export function createRueClient(options:RueClientOptions){
     messages:(id:string)=>request<RueMessage[]>(`/session/${encodeURIComponent(id)}/messages`),
     parts:(id:string)=>request<RuePart[]>(`/session/${encodeURIComponent(id)}/parts`),
     sendMessage:(id:string,input:SendMessageInput)=>request<SendMessageResult>(`/session/${encodeURIComponent(id)}/message`,{method:'POST',body:JSON.stringify(input)}),
+    registerDevice:(input:RueDeviceInput)=>request<RueDevice>('/device/register',{method:'POST',body:JSON.stringify(input)}),
+    devices:()=>request<RueDevice[]>('/device'),
+    revokeDevice:(id:string)=>request<{revoked:boolean}>(`/device/${encodeURIComponent(id)}`,{method:'DELETE'}),
+    createPairing:(input:RueDeviceInput)=>request<RuePairing>('/pairing',{method:'POST',body:JSON.stringify(input)}),
+    pairingStatus:(id:string)=>request<RuePairingStatus>(`/pairing/${encodeURIComponent(id)}`),
+    redeemPairing:(input:RueDeviceInput&({token:string}|{code:string}))=>request<{device:RueDevice;pairingId:string;synced:boolean}>('/pairing/redeem',{method:'POST',body:JSON.stringify(input)}),
+    preferences:()=>request<RuePreference[]>('/sync/preferences'),
+    setPreference:(key:string,input:{value:unknown;deviceId?:string;expectedVersion?:number})=>request<RuePreference>(`/sync/preferences/${encodeURIComponent(key)}`,{method:'PUT',body:JSON.stringify(input)}),
     events:(signal?:AbortSignal)=>createRueEventStream(`${baseUrl}/event`,options.token,requestFetch,signal),
     request,
   }

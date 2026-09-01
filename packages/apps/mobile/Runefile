@@ -7,5 +7,8 @@ test: vitest run --passWithNoTests --exclude "tests/e2e/**"
 test-e2e: playwright test
 lint: tsc --noEmit
 runway-assert-remote: node scripts/assert-runway-remote.cjs
-runway-dev-push-apk: node scripts/assert-runway-remote.cjs && RUNWAY_BUILD_TYPE=development runway push
-runway-dev-build-and-push-apk: node scripts/assert-runway-remote.cjs && RUNWAY_BUILD_TYPE=development runway push --assemble
+runway-dev-push-apk: node scripts/runway-publish.mjs --build-type=development --no-assemble
+runway-dev-build-and-push-apk: node scripts/runway-publish.mjs --build-type=development
+runway-preview-build-and-push-apk: node scripts/runway-publish.mjs --build-type=preview
+runway-production-build-and-push-apk: node scripts/runway-publish.mjs --build-type=production
+runway-dry-run: node scripts/runway-publish.mjs --build-type=development --dry-run

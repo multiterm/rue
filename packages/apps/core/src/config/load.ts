@@ -96,12 +96,13 @@ export function loadConfig(cwd: string = process.cwd()): Config {
   for (const path of discoverProjectConfigs(cwd)) {
     parts.push(readConfigFile(path))
   }
-  if (process.env.KEYNAME_AUTH_ENABLED || process.env.KEYNAME_API_URL || process.env.KEYNAME_CLIENT_ID) {
+  if (process.env.KEYNAME_AUTH_ENABLED || process.env.KEYNAME_API_URL || process.env.KEYNAME_CLIENT_ID || process.env.KEYNAME_CLIENT_SECRET) {
     parts.push({
       keyname: {
         enabled: process.env.KEYNAME_AUTH_ENABLED === 'true',
         apiUrl: process.env.KEYNAME_API_URL ?? 'https://api.keyname.dev',
         ...(process.env.KEYNAME_CLIENT_ID ? { clientId: process.env.KEYNAME_CLIENT_ID } : {}),
+        ...(process.env.KEYNAME_CLIENT_SECRET ? { clientSecret: process.env.KEYNAME_CLIENT_SECRET } : {}),
       },
     })
   }

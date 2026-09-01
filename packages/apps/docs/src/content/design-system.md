@@ -13,10 +13,12 @@ Import the shared theme once in each web entry stylesheet:
 
 ## Components
 
-`@multiterm/rue-ui` provides shadcn-style Button, Card, Input, Badge, and theme components. Components use semantic utilities such as `bg-surface`, `text-foreground`, and `border-border`.
+`@multiterm/rue-ui` provides shadcn-style Button, Card, Input, Textarea, Badge, Dialog, RueLogo, form, and theme components. Components use semantic utilities such as `bg-surface`, `text-foreground`, and `border-border`.
 
 Buttons match the Honeycluster Portal contract: primary, secondary, outline, ghost, and destructive presentation; five sizes; semantic Primary, Secondary, Warning, Danger, and Success modes; and loading states. Inputs include default, action, date, amount, card-number, password, stepper, link, and dial variants with labels, helper/error text, and icon/add-on slots.
 
 ## Themes
 
-Grove, Midnight, Paper, and Mono each support light and dark modes. Native clients consume `rueNativeThemes` from `@multiterm/rue-gds`.
+Rue, Grove, Midnight, Paper, Mono, Sunset, and Ocean each support light and dark modes. Rue is the neutral default built around the current black, white, green, orange, and violet product palette.
+
+Use Tailwind v4 semantic colors (`background`, `surface`, `elevated`, `foreground`, `muted`, `primary`, `inverse`, status colors, and `bot-1` through `bot-6`) rather than literal colors. Native clients consume the default `rueNativeThemes` palette or the complete `rueNativeThemePalettes` map from `@multiterm/rue-gds`.

@@ -15,9 +15,16 @@
       "browser": "./src/client.ts",
       "development": "./src/client.ts",
       "default": "./dist/client.js"
+    },
+    "./contracts": {
+      "types": "./src/contracts.ts",
+      "browser": "./src/contracts.ts",
+      "development": "./src/contracts.ts",
+      "default": "./dist/contracts.js"
     }
   },
   "dependencies": {
+    "@keyname/sdk": "0.1.0-beta.0",
     "@multiterm/rue-db": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@trpc/client": "catalog:",

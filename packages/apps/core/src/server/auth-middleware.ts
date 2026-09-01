@@ -16,7 +16,7 @@ export function basicAuth(password: string | undefined): MiddlewareHandler {
   // Standard Basic auth: empty username, password as given.
   const expected = 'Basic ' + Buffer.from(`:${password}`).toString('base64')
   return async (c, next) => {
-    if (EXEMPT_PATHS.has(c.req.path)) return next()
+    if(EXEMPT_PATHS.has(c.req.path)||c.req.path.startsWith('/trpc/auth.login')||c.req.path.startsWith('/trpc/auth.verifyMfa'))return next()
     const header = c.req.header('authorization')
     if (header !== expected) {
       return c.json({ error: 'unauthorized' }, 401, {

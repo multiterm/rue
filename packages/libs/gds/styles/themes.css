@@ -1,15 +1,91 @@
 @import "./tokens.css";
 
-:root, [data-theme="Grove"][data-mode="dark"] {
-  color-scheme: dark; --rue-bg:#07100b; --rue-bg-2:#0b1810; --rue-surface:#102219; --rue-surface-2:#173025; --rue-elevated:#1b382a;
-  --rue-border:rgb(210 255 224/.14); --rue-border-strong:rgb(210 255 224/.26); --rue-text:#f4fff7; --rue-muted:#a0b9a8; --rue-subtle:#6f8b78;
-  --rue-primary:#8df0b2; --rue-primary-contrast:#07100b; --rue-secondary:#a78bfa; --rue-accent:#5eead4; --rue-danger:#fb7185; --rue-warning:#fbbf24; --rue-success:#34d399;
-  --rue-glow-1:rgb(77 255 146/.18); --rue-glow-2:rgb(167 139 250/.14); --rue-grid:rgb(255 255 255/.055);
+:root {
+  --rue-danger:#dc4545; --rue-danger-contrast:#fff; --rue-warning:#e49a18; --rue-warning-contrast:#241604; --rue-success:#249b62; --rue-success-contrast:#fff;
+  --rue-bot-1:#54c987; --rue-bot-2:#f4a62a; --rue-bot-3:#7453ee; --rue-bot-4:#7b52ed; --rue-bot-5:#408bd8; --rue-bot-6:#ef7936; --rue-bot-foreground:#fff;
 }
-[data-theme="Grove"][data-mode="light"] { color-scheme:light; --rue-bg:#f4f8f3; --rue-bg-2:#e9f1e9; --rue-surface:#fff; --rue-surface-2:#f6faf5; --rue-elevated:#fff; --rue-border:rgb(8 45 23/.12); --rue-border-strong:rgb(8 45 23/.22); --rue-text:#0b2415; --rue-muted:#4f6858; --rue-subtle:#718578; --rue-primary:#176c3a; --rue-primary-contrast:#fff; --rue-secondary:#6d4cff; --rue-accent:#087f72; --rue-glow-1:rgb(23 108 58/.12); --rue-glow-2:rgb(109 76 255/.1); --rue-grid:rgb(8 45 23/.07); }
-[data-theme="Midnight"][data-mode="dark"] { --rue-bg:#050713; --rue-bg-2:#0b1024; --rue-surface:#111831; --rue-surface-2:#182144; --rue-elevated:#1c2850; --rue-primary:#60a5fa; --rue-primary-contrast:#06101f; --rue-secondary:#a78bfa; --rue-accent:#67e8f9; --rue-glow-1:rgb(96 165 250/.23); --rue-glow-2:rgb(167 139 250/.18); }
-[data-theme="Midnight"][data-mode="light"] { color-scheme:light; --rue-bg:#f5f7ff; --rue-bg-2:#e9edff; --rue-surface:#fff; --rue-surface-2:#f6f7ff; --rue-elevated:#fff; --rue-border:rgb(20 35 80/.12); --rue-border-strong:rgb(20 35 80/.22); --rue-text:#101936; --rue-muted:#53607e; --rue-subtle:#7a849d; --rue-primary:#2563eb; --rue-primary-contrast:#fff; --rue-secondary:#7c3aed; --rue-accent:#0891b2; --rue-glow-1:rgb(37 99 235/.12); --rue-glow-2:rgb(124 58 237/.1); --rue-grid:rgb(20 35 80/.06); }
-[data-theme="Paper"][data-mode="light"] { color-scheme:light; --rue-bg:#fbfaf7; --rue-bg-2:#f1eadf; --rue-surface:#fffdf8; --rue-surface-2:#f8f3e9; --rue-elevated:#fff; --rue-border:rgb(60 45 25/.14); --rue-border-strong:rgb(60 45 25/.24); --rue-text:#17120b; --rue-muted:#675f53; --rue-subtle:#8a8174; --rue-primary:#17120b; --rue-primary-contrast:#fffdf8; --rue-secondary:#9333ea; --rue-accent:#059669; --rue-glow-1:rgb(23 18 11/.06); --rue-glow-2:rgb(147 51 234/.08); --rue-grid:rgb(60 45 25/.06); }
-[data-theme="Paper"][data-mode="dark"] { --rue-bg:#14120f; --rue-bg-2:#1b1813; --rue-surface:#211d17; --rue-surface-2:#2b261e; --rue-elevated:#312b22; --rue-primary:#f5f0e7; --rue-primary-contrast:#17120b; --rue-secondary:#c084fc; --rue-accent:#10b981; }
-[data-theme="Mono"][data-mode="dark"] { --rue-bg:#050505; --rue-bg-2:#0a0a0a; --rue-surface:#101010; --rue-surface-2:#171717; --rue-elevated:#1d1d1d; --rue-border:rgb(255 255 255/.12); --rue-border-strong:rgb(255 255 255/.22); --rue-text:#fafafa; --rue-muted:#a3a3a3; --rue-subtle:#737373; --rue-primary:#f5f5f5; --rue-primary-contrast:#111; --rue-secondary:#a3a3a3; --rue-accent:#d4d4d4; --rue-glow-1:rgb(255 255 255/.06); --rue-glow-2:rgb(255 255 255/.035); --rue-grid:rgb(255 255 255/.06); }
-[data-theme="Mono"][data-mode="light"] { color-scheme:light; --rue-bg:#f7f7f7; --rue-bg-2:#eee; --rue-surface:#fff; --rue-surface-2:#fafafa; --rue-elevated:#fff; --rue-border:rgb(0 0 0/.11); --rue-border-strong:rgb(0 0 0/.2); --rue-text:#111; --rue-muted:#525252; --rue-subtle:#737373; --rue-primary:#171717; --rue-primary-contrast:#fff; --rue-secondary:#525252; --rue-accent:#262626; --rue-glow-1:rgb(0 0 0/.04); --rue-glow-2:rgb(0 0 0/.025); --rue-grid:rgb(0 0 0/.06); }
+
+:root, [data-theme="Rue"][data-mode="light"] {
+  color-scheme:light; --rue-bg:#fff; --rue-bg-2:#f7f7f5; --rue-surface:#fff; --rue-surface-2:#f1f1ef; --rue-elevated:#fff;
+  --rue-border:#e9e9e7; --rue-border-strong:#d7d7d3; --rue-text:#111; --rue-muted:#777; --rue-subtle:#999;
+  --rue-primary:#111; --rue-primary-contrast:#fff; --rue-secondary:#7453ee; --rue-accent:#54c987; --rue-focus:#7453ee;
+  --rue-inverse:#111; --rue-inverse-foreground:#fff; --rue-overlay:rgb(17 17 17/.42); --rue-glow-1:rgb(84 201 135/.08); --rue-glow-2:rgb(116 83 238/.07); --rue-grid:rgb(17 17 17/.035);
+}
+[data-theme="Rue"][data-mode="dark"] {
+  color-scheme:dark; --rue-bg:#111; --rue-bg-2:#151514; --rue-surface:#1b1b1a; --rue-surface-2:#242422; --rue-elevated:#2b2b29;
+  --rue-border:#30302e; --rue-border-strong:#444440; --rue-text:#f7f7f5; --rue-muted:#a3a3a0; --rue-subtle:#767673;
+  --rue-primary:#f7f7f5; --rue-primary-contrast:#111; --rue-secondary:#9b83ff; --rue-accent:#64d99a; --rue-focus:#9b83ff;
+  --rue-inverse:#f7f7f5; --rue-inverse-foreground:#111; --rue-overlay:rgb(0 0 0/.68); --rue-glow-1:rgb(100 217 154/.09); --rue-glow-2:rgb(155 131 255/.09); --rue-grid:rgb(255 255 255/.04);
+}
+[data-theme="Grove"][data-mode="light"] {
+  color-scheme:light; --rue-bg:#f4f8f3; --rue-bg-2:#e9f1e9; --rue-surface:#fff; --rue-surface-2:#f6faf5; --rue-elevated:#fff;
+  --rue-border:rgb(8 45 23/.12); --rue-border-strong:rgb(8 45 23/.22); --rue-text:#0b2415; --rue-muted:#4f6858; --rue-subtle:#718578;
+  --rue-primary:#176c3a; --rue-primary-contrast:#fff; --rue-secondary:#6d4cff; --rue-accent:#087f72; --rue-focus:#176c3a; --rue-inverse:#0b2415; --rue-inverse-foreground:#fff;
+  --rue-overlay:rgb(7 16 11/.46); --rue-glow-1:rgb(23 108 58/.12); --rue-glow-2:rgb(109 76 255/.1); --rue-grid:rgb(8 45 23/.07);
+}
+[data-theme="Grove"][data-mode="dark"] {
+  color-scheme:dark; --rue-bg:#07100b; --rue-bg-2:#0b1810; --rue-surface:#102219; --rue-surface-2:#173025; --rue-elevated:#1b382a;
+  --rue-border:rgb(210 255 224/.14); --rue-border-strong:rgb(210 255 224/.26); --rue-text:#f4fff7; --rue-muted:#a0b9a8; --rue-subtle:#6f8b78;
+  --rue-primary:#8df0b2; --rue-primary-contrast:#07100b; --rue-secondary:#a78bfa; --rue-accent:#5eead4; --rue-focus:#8df0b2; --rue-inverse:#f4fff7; --rue-inverse-foreground:#07100b;
+  --rue-overlay:rgb(0 5 2/.7); --rue-glow-1:rgb(77 255 146/.18); --rue-glow-2:rgb(167 139 250/.14); --rue-grid:rgb(255 255 255/.055);
+}
+[data-theme="Midnight"][data-mode="light"] {
+  color-scheme:light; --rue-bg:#f5f7ff; --rue-bg-2:#e9edff; --rue-surface:#fff; --rue-surface-2:#f6f7ff; --rue-elevated:#fff;
+  --rue-border:rgb(20 35 80/.12); --rue-border-strong:rgb(20 35 80/.22); --rue-text:#101936; --rue-muted:#53607e; --rue-subtle:#7a849d;
+  --rue-primary:#2563eb; --rue-primary-contrast:#fff; --rue-secondary:#7c3aed; --rue-accent:#0891b2; --rue-focus:#2563eb; --rue-inverse:#101936; --rue-inverse-foreground:#fff;
+  --rue-overlay:rgb(5 7 19/.5); --rue-glow-1:rgb(37 99 235/.12); --rue-glow-2:rgb(124 58 237/.1); --rue-grid:rgb(20 35 80/.06);
+}
+[data-theme="Midnight"][data-mode="dark"] {
+  color-scheme:dark; --rue-bg:#050713; --rue-bg-2:#0b1024; --rue-surface:#111831; --rue-surface-2:#182144; --rue-elevated:#1c2850;
+  --rue-border:rgb(204 220 255/.14); --rue-border-strong:rgb(204 220 255/.25); --rue-text:#f5f7ff; --rue-muted:#9ba8cc; --rue-subtle:#6d789c;
+  --rue-primary:#60a5fa; --rue-primary-contrast:#06101f; --rue-secondary:#a78bfa; --rue-accent:#67e8f9; --rue-focus:#60a5fa; --rue-inverse:#f5f7ff; --rue-inverse-foreground:#050713;
+  --rue-overlay:rgb(1 2 10/.72); --rue-glow-1:rgb(96 165 250/.23); --rue-glow-2:rgb(167 139 250/.18); --rue-grid:rgb(255 255 255/.05);
+}
+[data-theme="Paper"][data-mode="light"] {
+  color-scheme:light; --rue-bg:#fbfaf7; --rue-bg-2:#f1eadf; --rue-surface:#fffdf8; --rue-surface-2:#f8f3e9; --rue-elevated:#fff;
+  --rue-border:rgb(60 45 25/.14); --rue-border-strong:rgb(60 45 25/.24); --rue-text:#17120b; --rue-muted:#675f53; --rue-subtle:#8a8174;
+  --rue-primary:#17120b; --rue-primary-contrast:#fffdf8; --rue-secondary:#9333ea; --rue-accent:#059669; --rue-focus:#9333ea; --rue-inverse:#17120b; --rue-inverse-foreground:#fffdf8;
+  --rue-overlay:rgb(23 18 11/.45); --rue-glow-1:rgb(23 18 11/.06); --rue-glow-2:rgb(147 51 234/.08); --rue-grid:rgb(60 45 25/.06);
+}
+[data-theme="Paper"][data-mode="dark"] {
+  color-scheme:dark; --rue-bg:#14120f; --rue-bg-2:#1b1813; --rue-surface:#211d17; --rue-surface-2:#2b261e; --rue-elevated:#312b22;
+  --rue-border:rgb(245 240 231/.13); --rue-border-strong:rgb(245 240 231/.24); --rue-text:#f5f0e7; --rue-muted:#b7aa98; --rue-subtle:#817566;
+  --rue-primary:#f5f0e7; --rue-primary-contrast:#17120b; --rue-secondary:#c084fc; --rue-accent:#10b981; --rue-focus:#c084fc; --rue-inverse:#f5f0e7; --rue-inverse-foreground:#17120b;
+  --rue-overlay:rgb(10 8 5/.72); --rue-glow-1:rgb(245 240 231/.05); --rue-glow-2:rgb(192 132 252/.1); --rue-grid:rgb(255 255 255/.04);
+}
+[data-theme="Mono"][data-mode="light"] {
+  color-scheme:light; --rue-bg:#f7f7f7; --rue-bg-2:#eee; --rue-surface:#fff; --rue-surface-2:#fafafa; --rue-elevated:#fff;
+  --rue-border:rgb(0 0 0/.11); --rue-border-strong:rgb(0 0 0/.2); --rue-text:#111; --rue-muted:#525252; --rue-subtle:#737373;
+  --rue-primary:#171717; --rue-primary-contrast:#fff; --rue-secondary:#525252; --rue-accent:#262626; --rue-focus:#171717; --rue-inverse:#111; --rue-inverse-foreground:#fff;
+  --rue-overlay:rgb(0 0 0/.46); --rue-glow-1:rgb(0 0 0/.04); --rue-glow-2:rgb(0 0 0/.025); --rue-grid:rgb(0 0 0/.06);
+}
+[data-theme="Mono"][data-mode="dark"] {
+  color-scheme:dark; --rue-bg:#050505; --rue-bg-2:#0a0a0a; --rue-surface:#101010; --rue-surface-2:#171717; --rue-elevated:#1d1d1d;
+  --rue-border:rgb(255 255 255/.12); --rue-border-strong:rgb(255 255 255/.22); --rue-text:#fafafa; --rue-muted:#a3a3a3; --rue-subtle:#737373;
+  --rue-primary:#f5f5f5; --rue-primary-contrast:#111; --rue-secondary:#a3a3a3; --rue-accent:#d4d4d4; --rue-focus:#f5f5f5; --rue-inverse:#fafafa; --rue-inverse-foreground:#050505;
+  --rue-overlay:rgb(0 0 0/.74); --rue-glow-1:rgb(255 255 255/.06); --rue-glow-2:rgb(255 255 255/.035); --rue-grid:rgb(255 255 255/.06);
+}
+[data-theme="Sunset"][data-mode="light"] {
+  color-scheme:light; --rue-bg:#fff8f4; --rue-bg-2:#ffede4; --rue-surface:#fff; --rue-surface-2:#fff2eb; --rue-elevated:#fff;
+  --rue-border:rgb(99 42 25/.13); --rue-border-strong:rgb(99 42 25/.24); --rue-text:#32170f; --rue-muted:#79574c; --rue-subtle:#9d786c;
+  --rue-primary:#d64f27; --rue-primary-contrast:#fff; --rue-secondary:#8b5cf6; --rue-accent:#e08a18; --rue-focus:#d64f27; --rue-inverse:#32170f; --rue-inverse-foreground:#fff;
+  --rue-overlay:rgb(50 23 15/.48); --rue-glow-1:rgb(239 107 49/.14); --rue-glow-2:rgb(139 92 246/.1); --rue-grid:rgb(99 42 25/.055);
+}
+[data-theme="Sunset"][data-mode="dark"] {
+  color-scheme:dark; --rue-bg:#190b08; --rue-bg-2:#21100c; --rue-surface:#29130e; --rue-surface-2:#351a13; --rue-elevated:#402018;
+  --rue-border:rgb(255 222 207/.14); --rue-border-strong:rgb(255 222 207/.25); --rue-text:#fff5ef; --rue-muted:#c9a095; --rue-subtle:#916d63;
+  --rue-primary:#fb8a5c; --rue-primary-contrast:#291007; --rue-secondary:#c4a1ff; --rue-accent:#ffc05d; --rue-focus:#fb8a5c; --rue-inverse:#fff5ef; --rue-inverse-foreground:#190b08;
+  --rue-overlay:rgb(12 3 1/.72); --rue-glow-1:rgb(251 138 92/.17); --rue-glow-2:rgb(196 161 255/.11); --rue-grid:rgb(255 255 255/.045);
+}
+[data-theme="Ocean"][data-mode="light"] {
+  color-scheme:light; --rue-bg:#f2fbfc; --rue-bg-2:#e1f5f7; --rue-surface:#fff; --rue-surface-2:#edf9fa; --rue-elevated:#fff;
+  --rue-border:rgb(8 70 81/.13); --rue-border-strong:rgb(8 70 81/.24); --rue-text:#08282e; --rue-muted:#4b6d73; --rue-subtle:#749097;
+  --rue-primary:#087b8c; --rue-primary-contrast:#fff; --rue-secondary:#5b5ce2; --rue-accent:#149a7c; --rue-focus:#087b8c; --rue-inverse:#08282e; --rue-inverse-foreground:#fff;
+  --rue-overlay:rgb(3 33 38/.48); --rue-glow-1:rgb(8 123 140/.13); --rue-glow-2:rgb(91 92 226/.1); --rue-grid:rgb(8 70 81/.055);
+}
+[data-theme="Ocean"][data-mode="dark"] {
+  color-scheme:dark; --rue-bg:#031114; --rue-bg-2:#06191d; --rue-surface:#092228; --rue-surface-2:#0e2d34; --rue-elevated:#123840;
+  --rue-border:rgb(213 250 255/.14); --rue-border-strong:rgb(213 250 255/.25); --rue-text:#effdff; --rue-muted:#91b5bb; --rue-subtle:#63868c;
+  --rue-primary:#65d9e8; --rue-primary-contrast:#032126; --rue-secondary:#9a9bff; --rue-accent:#5ee1bd; --rue-focus:#65d9e8; --rue-inverse:#effdff; --rue-inverse-foreground:#031114;
+  --rue-overlay:rgb(0 8 10/.72); --rue-glow-1:rgb(101 217 232/.16); --rue-glow-2:rgb(154 155 255/.12); --rue-grid:rgb(255 255 255/.045);
+}

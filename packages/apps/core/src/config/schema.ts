@@ -29,6 +29,8 @@ export const KeynameConfigSchema = z
     apiUrl: z.string().url().default('https://api.keyname.dev'),
     /** Optional OAuth audience for registered confidential/public clients. */
     clientId: z.string().min(1).optional(),
+    /** Server-only confidential credential used by the validated tRPC password form. */
+    clientSecret: z.string().min(1).optional(),
   })
   .default({ enabled: false, apiUrl: 'https://api.keyname.dev' })
 

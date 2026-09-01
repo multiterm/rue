@@ -27,7 +27,7 @@ services:
     root: packages/apps/core
     command: [env, KEYNAME_AUTH_ENABLED=true, KEYNAME_REQUIRE_AUDIENCE=true, KEYNAME_API_URL=https://api.keyname.dev, node, dist/bin.js, serve, --hostname, 0.0.0.0, --port, "4097"]
     development:
-      command: [env, KEYNAME_AUTH_ENABLED=true, KEYNAME_API_URL=https://api.keyname.dev, corepack, pnpm, exec, tsx, watch, src/bin.ts, serve, --hostname, 0.0.0.0, --port, "4097"]
+      command: [env, COREPACK_HOME=/tmp/corepack, KEYNAME_AUTH_ENABLED=true, KEYNAME_API_URL=https://api.keyname.dev, KEYNAME_CLIENT_ID=knc_-3y7VPz-x-mHHz1kXyMvTBVW, corepack, pnpm, exec, tsx, watch, src/bin.ts, serve, --hostname, 0.0.0.0, --port, "4097"]
       health: /health
     port: 4097
     health: /health
@@ -35,27 +35,27 @@ services:
   webapp:
     root: packages/apps/webapp
     command: [node, ../../../scripts/serve-static.mjs, dist, "4173"]
-    development: { command: [corepack, pnpm, exec, vite, --host, 0.0.0.0, --port, "4173", --strictPort], health: / }
+    development: { command: [env, COREPACK_HOME=/tmp/corepack, VITE_CACHE_DIR=/tmp/vite-webapp, corepack, pnpm, exec, vite, --configLoader, runner, --host, 0.0.0.0, --port, "4173", --strictPort], health: / }
     port: 4173
     health: /
     dependsOn: [api]
-    resources: { memory: 512m, cpus: "0.5" }
+    resources: { memory: 2g, cpus: "1" }
   site:
     root: packages/apps/site
     command: [node, ../../../scripts/serve-static.mjs, dist, "4174"]
-    development: { command: [corepack, pnpm, exec, vite, --host, 0.0.0.0, --port, "4174", --strictPort], health: / }
+    development: { command: [env, COREPACK_HOME=/tmp/corepack, VITE_CACHE_DIR=/tmp/vite-site, corepack, pnpm, exec, vite, --configLoader, runner, --host, 0.0.0.0, --port, "4174", --strictPort], health: / }
     port: 4174
     health: /
     dependsOn: [api]
-    resources: { memory: 512m, cpus: "0.5" }
+    resources: { memory: 1g, cpus: "0.75" }
   docs:
     root: packages/apps/docs
     command: [node, ../../../scripts/serve-static.mjs, dist, "4175"]
-    development: { command: [corepack, pnpm, exec, vite, --host, 0.0.0.0, --port, "4175", --strictPort], health: / }
+    development: { command: [env, COREPACK_HOME=/tmp/corepack, VITE_CACHE_DIR=/tmp/vite-docs, corepack, pnpm, exec, vite, --configLoader, runner, --host, 0.0.0.0, --port, "4175", --strictPort], health: / }
     port: 4175
     health: /
     dependsOn: [api]
-    resources: { memory: 512m, cpus: "0.5" }
+    resources: { memory: 1g, cpus: "0.75" }
 
 checks:
   api-browser:

@@ -10,6 +10,7 @@ import { healthRoutes } from './routes/health.js'
 import { sessionRoutes } from './routes/sessions.js'
 import { messageRoutes } from './routes/messages.js'
 import { eventRoutes } from './routes/event.js'
+import { pairingRoutes } from './routes/pairing.js'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { appRouter } from '@multiterm/rue-trpc'
 import { createRueDatabase } from '@multiterm/rue-db'
@@ -59,11 +60,12 @@ export function createApp(opts: AppOptions): OpenAPIHono<{ Variables: { ctx: Ser
   app.route('/', sessionRoutes())
   app.route('/', messageRoutes())
   app.route('/', eventRoutes())
+  app.route('/', pairingRoutes())
   app.all('/trpc/*', (c) => fetchRequestHandler({
     endpoint: '/trpc',
     req: c.req.raw,
     router: appRouter,
-    createContext: () => ({ db: opts.ctx.orm ?? createRueDatabase(opts.ctx.db), principalSubject: c.get('principal').subject }),
+    createContext: () => ({db:opts.ctx.orm??createRueDatabase(opts.ctx.db),principalSubject:c.get('principal').subject,keyname:{apiUrl:opts.ctx.config.keyname.apiUrl,clientId:opts.ctx.config.keyname.clientId,clientSecret:opts.ctx.config.keyname.clientSecret}}),
   }))
 
   // OpenAPI document. SSE route doesn't appear here (intentional; see event.ts).

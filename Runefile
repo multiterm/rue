@@ -25,11 +25,15 @@ hooks-status: pnpm exec m-release hook status .
 sandblocks-validate: pnpm exec sandblocks validate .
 sandblocks-doctor: pnpm exec sandblocks doctor .
 sandblocks-register: pnpm exec sandblocks register .
-sandblocks-hooks-install: chmod 755 .hooks/post-commit .hooks/pre-commit .hooks/pre-push scripts/deployment/sandblocks-post-commit.mjs && git config core.hooksPath .hooks
-sandblocks-hooks-status: test "$(git config --get core.hooksPath)" = ".hooks" && echo "Rue hooks installed: develop -> develop, pre -> preview, prod -> production; local quality gates enabled"
+sandblocks-hooks-install: chmod 755 .hooks/post-commit .hooks/pre-commit .hooks/pre-push scripts/deployment/sandblocks-post-commit.mjs scripts/deployment/runway-post-commit.mjs packages/apps/mobile/scripts/runway-publish.mjs && git config core.hooksPath .hooks
+sandblocks-hooks-status: test "$(git config --get core.hooksPath)" = ".hooks" && echo "Rue hooks installed: Sandblocks + Runway (develop/development, pre/preview, prod/production); local quality gates enabled"
 deploy: pnpm exec sandblocks sandbox up .
 redeploy: pnpm exec sandblocks sandbox redeploy .
 status: pnpm exec sandblocks sandbox status .
 destroy: pnpm exec sandblocks sandbox down .
 
 runway-push: pnpm --filter @multiterm/rue-mobile exec rune runway-dev-build-and-push-apk
+runway-push-preview: pnpm --filter @multiterm/rue-mobile exec rune runway-preview-build-and-push-apk
+runway-push-production: pnpm --filter @multiterm/rue-mobile exec rune runway-production-build-and-push-apk
+runway-dry-run: pnpm --filter @multiterm/rue-mobile exec rune runway-dry-run
+runway-post-commit-dry-run: RUNWAY_POST_COMMIT_DRY_RUN=1 RUNWAY_POST_COMMIT_FOREGROUND=1 RUNWAY_POST_COMMIT_ALLOW_DIRTY=1 RUNWAY_FORCE_POST_COMMIT=1 node scripts/deployment/runway-post-commit.mjs

@@ -12,10 +12,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     version: '0.1.0',
     orientation: 'portrait',
     userInterfaceStyle: 'automatic',
-    plugins: ['expo-router', 'expo-secure-store'],
+    plugins: ['expo-router', 'expo-secure-store', ['expo-camera',{cameraPermission:'Scan Rue pairing QR codes to link this device.'}]],
     experiments: { typedRoutes: true },
-    ios: { bundleIdentifier: `dev.multiterm.rue${suffix}`, supportsTablet: true },
-    android: { package: `dev.multiterm.rue${suffix}` },
+    ios: { bundleIdentifier: `dev.multiterm.rue${suffix}`, supportsTablet: true, associatedDomains:['applinks:app.rue.multiterm.dev'] },
+    android: { package: `dev.multiterm.rue${suffix}`, intentFilters:[{action:'VIEW',autoVerify:true,data:[{scheme:'https',host:'app.rue.multiterm.dev',pathPrefix:'/link'}],category:['BROWSABLE','DEFAULT']}] },
     extra: {
       appVariant: variant,
       keynameApiUrl: process.env.EXPO_PUBLIC_KEYNAME_API_URL ?? 'https://api.keyname.dev',

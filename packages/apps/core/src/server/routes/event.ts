@@ -19,7 +19,8 @@ export function eventRoutes(): Hono<{ Variables: { ctx: ServerContext } }> {
     streamSSE(c, async (stream) => {
       const principalSubject = c.get('principal').subject
       const visible = (event: { payload: unknown }) => {
-        const payload = event.payload as { sessionId?: string }
+        const payload = event.payload as { sessionId?: string;ownerSubject?:string }
+        if(payload.ownerSubject)return payload.ownerSubject===principalSubject
         return !payload.sessionId || Boolean(getSession(c.var.ctx.db, payload.sessionId, principalSubject))
       }
       const write = (event: { id: number; type: string; time: number; payload: unknown }) => stream.writeSSE({

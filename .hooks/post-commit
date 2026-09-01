@@ -7,4 +7,7 @@ if [ "${SANDBLOCKS_SKIP_POST_COMMIT:-0}" = "1" ]; then
   echo "sandblocks post-commit skipped by SANDBLOCKS_SKIP_POST_COMMIT"
   exit 0
 fi
-exec node scripts/deployment/sandblocks-post-commit.mjs
+status=0
+node scripts/deployment/sandblocks-post-commit.mjs || status=$?
+node scripts/deployment/runway-post-commit.mjs || status=$?
+exit "$status"

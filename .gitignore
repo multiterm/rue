@@ -1,4 +1,5 @@
 .sandblocks/
+.runway/
 node_modules/
 dist/
 coverage/

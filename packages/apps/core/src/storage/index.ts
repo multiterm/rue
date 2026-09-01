@@ -1,4 +1,6 @@
 export { openDatabase } from './db.js'
+export {registerDevice,listDevices,revokeDevice,createPairing,findPairing,getPairing,claimPairing,listPreferences,setPreference} from './pairing.js'
+export type {DeviceRow,PairingRow,SyncedPreferenceRow} from './pairing.js'
 export { MIGRATIONS } from './schema.js'
 export type {
   Role,

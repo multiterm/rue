@@ -18,7 +18,8 @@ export function keynameAuth(enabled: boolean, apiUrl: string, audience?: string)
   }
   const endpoint = `${apiUrl.replace(/\/$/, '')}/v1/token/verify`
   return async (context, next) => {
-    if (EXEMPT_PATHS.has(context.req.path)) return next()
+    if(EXEMPT_PATHS.has(context.req.path))return next()
+    if(context.req.path.startsWith('/trpc/auth.login')||context.req.path.startsWith('/trpc/auth.verifyMfa')){context.set('principal',{subject:'public:login',principalType:'local',scopes:[]});return next()}
     const header = context.req.header('authorization')
     const token = header?.startsWith('Bearer ') ? header.slice(7) : ''
     if (!token) return context.json({ error: 'KEYNAME_AUTH_REQUIRED' }, 401)

@@ -105,4 +105,44 @@ export const MIGRATIONS: ReadonlyArray<{ id: number; name: string; sql: string }
       CREATE INDEX idx_sessions_owner_updated ON sessions(owner_subject, updated_at DESC);
     `,
   },
+  {
+    id: 3,
+    name: 'device_pairing_and_sync',
+    sql: `
+      CREATE TABLE devices (
+        id             TEXT PRIMARY KEY,
+        owner_subject  TEXT NOT NULL,
+        name           TEXT NOT NULL,
+        platform       TEXT NOT NULL,
+        created_at     INTEGER NOT NULL,
+        last_seen_at   INTEGER NOT NULL,
+        revoked_at     INTEGER
+      );
+      CREATE INDEX idx_devices_owner_seen ON devices(owner_subject, last_seen_at DESC);
+
+      CREATE TABLE device_pairings (
+        id                 TEXT PRIMARY KEY,
+        owner_subject      TEXT NOT NULL,
+        token_hash         TEXT NOT NULL UNIQUE,
+        code_hash          TEXT NOT NULL,
+        created_device_id  TEXT,
+        claimed_device_id  TEXT,
+        created_at         INTEGER NOT NULL,
+        expires_at         INTEGER NOT NULL,
+        claimed_at         INTEGER
+      );
+      CREATE INDEX idx_device_pairings_owner ON device_pairings(owner_subject, created_at DESC);
+      CREATE INDEX idx_device_pairings_code ON device_pairings(owner_subject, code_hash);
+
+      CREATE TABLE synced_preferences (
+        owner_subject       TEXT NOT NULL,
+        key                 TEXT NOT NULL,
+        value               TEXT NOT NULL,
+        version             INTEGER NOT NULL,
+        updated_at          INTEGER NOT NULL,
+        updated_by_device   TEXT,
+        PRIMARY KEY (owner_subject, key)
+      );
+    `,
+  },
 ]
