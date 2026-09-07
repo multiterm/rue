@@ -18,7 +18,10 @@ const logPath=join(logDir,`post-commit-${branch}-${Date.now()}.log`);const log=a
 const localEnv=readEnv(join(root,'.sandblocks/config.env'))
 const childEnv={...localEnv,...process.env,SANDBLOCKS_SKIP_POST_COMMIT:'1',SANDBLOCKS_RETAIN_FAILED:'true'}
 if(environment==='develop')delete childEnv.SANDBLOCKS_SANDBOX_TARGET_HOST
-const child=spawn(sandblocks,['sandbox',command,root,'--environment',environment],{cwd:root,detached:true,stdio:['ignore',log.fd,log.fd],env:childEnv})
+const sync=command==='sync'
+const executable=sync?process.execPath:sandblocks
+const args=sync?[join(root,'scripts/deployment/sync-development.mjs')]:['sandbox',command,root,'--environment',environment]
+const child=spawn(executable,args,{cwd:root,detached:true,stdio:['ignore',log.fd,log.fd],env:childEnv})
 child.unref();await log.close();console.log(`sandblocks ${command} started: ${branch} -> ${environment} (${logPath})`)
 function readEnv(path){if(!existsSync(path))return {};const values={};for(const raw of readFileSync(path,'utf8').split(/\r?\n/)){const line=raw.trim();if(!line||line.startsWith('#'))continue;const index=line.indexOf('=');if(index<1)continue;const key=line.slice(0,index).trim();let value=line.slice(index+1).trim();if((value.startsWith('"')&&value.endsWith('"'))||(value.startsWith("'")&&value.endsWith("'")))value=value.slice(1,-1);values[key]=value}return values}
 function git(args){const result=spawnSync('git',args,{cwd:root,encoding:'utf8'});if(result.status!==0)throw new Error(result.stderr.trim()||`git ${args[0]} failed`);return result.stdout.trim()}

@@ -19,7 +19,7 @@ tasks:
   quality-fast:
     command: [corepack, pnpm, exec, rune, quality-fast]
     timeout: 5m
-    inputs: [package.json, pnpm-lock.yaml, quality]
+    inputs: [package.json, pnpm-lock.yaml, Runefile, quality, scripts/review, scripts/deployment]
     outputs: [coverage]
 
 services:

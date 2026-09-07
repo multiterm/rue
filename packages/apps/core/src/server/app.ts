@@ -43,7 +43,7 @@ export function createApp(opts: AppOptions): OpenAPIHono<{ Variables: { ctx: Ser
     cors({
       origin: '*',
       allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowHeaders: ['authorization', 'content-type', 'x-rue-directory'],
+      allowHeaders: ['authorization', 'content-type', 'x-rue-directory', 'last-event-id'],
       maxAge: 600,
     }),
   )

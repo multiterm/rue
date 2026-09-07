@@ -15,4 +15,25 @@ test('creates a QR, link, and fallback code for another device',async({page})=>{
 test('redeems a pairing link after Keyname authentication',async({page})=>{await page.goto('/link?token=pair-secret');await page.getByRole('button',{name:/Sign in with Keyname/}).click();await expect(page.getByText('Device linked. Your Rue sessions are ready.')).toBeVisible()})
 test('bot workspace supports bot creation and deletion',async({page})=>{await page.goto('/login');await page.getByRole('button',{name:/Sign in with Keyname/}).click();await page.getByRole('button',{name:'Create first bot'}).click();await expect(page.getByRole('dialog',{name:'Add new bot'})).toBeVisible();await page.getByLabel('Bot name').fill('Research partner');await page.getByLabel('Description').fill('Finds evidence and summarizes decisions.');await page.getByRole('button',{name:'Add bot'}).click();await expect(page.locator('.conversation-header').getByText('Research partner',{exact:true})).toBeVisible();await expect(page.getByRole('textbox',{name:'Message',exact:true})).toHaveAttribute('placeholder','Message Research partner');await expect(page.getByLabel('Sessions').getByText('Finds evidence and summarizes decisions.')).toHaveText('Finds evidence and summarizes decisions.');await page.getByLabel('Workspace options').click();await page.getByRole('button',{name:'Delete bot'}).click();await expect(page.getByRole('dialog',{name:'Delete bot?'})).toBeVisible();await page.getByRole('dialog',{name:'Delete bot?'}).getByRole('button',{name:'Delete bot'}).click();await expect(page.getByText('Your Rue crew starts here.')).toBeVisible()})
 test('bot workspace matches the approved responsive visual layout',async({page})=>{await page.goto('/login');await page.getByRole('button',{name:/Sign in with Keyname/}).click();await page.getByRole('button',{name:'Create first bot'}).click();await page.getByLabel('Bot name').fill('Chief of Staff');await page.getByLabel('Description').fill('Plans the day and keeps work moving.');await page.getByRole('button',{name:'Add bot'}).click();await page.getByRole('textbox',{name:'Message',exact:true}).fill('Prepare tomorrow’s briefing');await page.getByRole('button',{name:'Send message'}).click();await expect(page.getByText('Hello from Rue')).toBeVisible();await expect(page).toHaveScreenshot('rue-bot-workspace.png',{animations:'disabled',fullPage:true})})
+test('reconnecting the stream refreshes externally changed session state', async ({ page }) => {
+  let connections = 0
+  let release!: () => void
+  const firstConnection = new Promise<void>((resolve) => { release = resolve })
+  await page.route('http://localhost:4097/session', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([
+    { id: 'ses_external', title: connections >= 2 ? 'Changed on another client' : 'Before reconnect', agent: null, provider: 'test', model: 'test', directory: null, scopes: [], parentId: null, ownerSubject: 'usr_test', createdAt: 1, updatedAt: 2, meta: {} },
+  ]) }))
+  await page.route('http://localhost:4097/event', async (route) => {
+    connections++
+    if (connections === 1) await firstConnection
+    await route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'data: {"id":0,"type":"hello","time":1,"payload":{}}\n\n' })
+  })
+  try {
+    await page.goto('/login')
+    await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+    await expect(page.getByLabel('Sessions')).toContainText('Before reconnect')
+    release()
+    await expect(page.getByLabel('Sessions')).toContainText('Changed on another client')
+    expect(connections).toBeGreaterThanOrEqual(2)
+  } finally { release() }
+})
 declare global{interface Window{__keynameMode?:string}}
