@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from '@tanstack/react-form'
-import { Button, Dialog, Input, Label, Textarea } from '@multiterm/rue-ui'
+import { Button, Checkbox, Dialog, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from '@multiterm/rue-ui'
 import { RueApiError, type RueAgentSettings } from '@multiterm/rue-sdk'
 import { rue } from './client'
 
@@ -29,14 +29,14 @@ function AgentSettingsForm({ initial: incoming, onClose }: { initial: RueAgentSe
     },
   })
   return <form className="bot-create-form" onSubmit={event => { event.preventDefault(); event.stopPropagation(); void form.handleSubmit() }}>
-    <form.Field name="harness">{field => <label>Agent harness<select aria-label="Agent harness" value={field.state.value} onChange={() => field.handleChange('pi')}><option value="pi">Pi agent</option></select></label>}</form.Field>
-    <form.Field name="provider">{field => <label>Model provider<select aria-label="Model provider" value={field.state.value} onChange={() => field.handleChange('openai')}><option value="openai">OpenAI</option></select></label>}</form.Field>
-    <form.Field name="model">{field => <label>Model<select aria-label="Model" value={field.state.value} onChange={event => field.handleChange(event.target.value)}>{initial.models.map(model => <option key={model} value={model}>{model}</option>)}</select></label>}</form.Field>
-    <form.Field name="systemPrompt">{field => <div><Label htmlFor="agent-system-prompt">System prompt</Label><Textarea id="agent-system-prompt" maxLength={16000} value={field.state.value} onChange={event => field.handleChange(event.target.value)}/></div>}</form.Field>
+    <form.Field name="harness">{field => <div className="grid gap-2"><Label htmlFor="agent-harness">Agent harness</Label><Select value={field.state.value} onValueChange={() => field.handleChange('pi')}><SelectTrigger id="agent-harness"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="pi">Pi agent</SelectItem></SelectContent></Select></div>}</form.Field>
+    <form.Field name="provider">{field => <div className="grid gap-2"><Label htmlFor="agent-provider">Model provider</Label><Select value={field.state.value} onValueChange={() => field.handleChange('openai')}><SelectTrigger id="agent-provider"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="openai">OpenAI</SelectItem></SelectContent></Select></div>}</form.Field>
+    <form.Field name="model">{field => <div className="grid gap-2"><Label htmlFor="agent-model">Model</Label><Select value={field.state.value} onValueChange={field.handleChange}><SelectTrigger id="agent-model"><SelectValue/></SelectTrigger><SelectContent>{initial.models.map(model => <SelectItem key={model} value={model}>{model}</SelectItem>)}</SelectContent></Select></div>}</form.Field>
+    <form.Field name="systemPrompt">{field => <div className="grid gap-2"><Label htmlFor="agent-system-prompt">System prompt</Label><Textarea id="agent-system-prompt" maxLength={16000} value={field.state.value} onChange={event => field.handleChange(event.target.value)}/></div>}</form.Field>
     <p>OpenAI API key: {initial.apiKeyConfigured ? 'Configured' : 'Not configured'}. Leave blank to keep the saved key.</p>
     {!initial.keyStorageAvailable && <p role="status">Secure server credential storage is not configured. API keys cannot be saved yet.</p>}
     <form.Field name="apiKey">{field => <Input label="OpenAI API key" type="password" autoComplete="new-password" maxLength={4096} disabled={!initial.keyStorageAvailable} value={field.state.value} onChange={event => field.handleChange(event.target.value)} show={{ label: true, hideRequireType: true }}/>}</form.Field>
-    {initial.apiKeyConfigured && <form.Field name="removeKey">{field => <label><input type="checkbox" checked={field.state.value} onChange={event => field.handleChange(event.target.checked)}/>Remove saved API key</label>}</form.Field>}
+    {initial.apiKeyConfigured && <form.Field name="removeKey">{field => <div className="grid gap-2"><Label htmlFor="agent-remove-key">Remove saved API key</Label><Checkbox id="agent-remove-key" checked={field.state.value} onCheckedChange={value => field.handleChange(value === true)}/></div>}</form.Field>}
     <p>Saving does not validate provider access. Recovery requires both the database backup and a separately protected server-key backup.</p>
     <p>Pi runs chat only here. Shell, file access, extensions, deployment tools, and self-updates are disabled. Your key is never returned to the app or synced to devices.</p>
     {error && <p role="alert">{error}</p>}

@@ -1,6 +1,6 @@
 # In-app agent settings
 
-Open **Agent settings** using the sidebar gear or the conversation's workspace menu. Settings belong to the signed-in Keyname subject, not the server administrator or another user.
+Open **Agent settings** using the top-right collapsed menu. Settings belong to the signed-in Keyname subject, not the server administrator or another user.
 
 Supported configuration:
 - Harness: **Pi agent core** (`@earendil-works/pi-agent-core`, pinned). This is not the Pi coding CLI or its filesystem session/resource loader.
