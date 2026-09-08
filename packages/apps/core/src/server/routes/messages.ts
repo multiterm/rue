@@ -1,5 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { randomBytes } from 'node:crypto'
+import { agentSettings, agentApiKey } from '../../storage/agent-settings.js'
+import { piProvider } from '../../provider/pi.js'
 import { getProvider } from '../../provider/index.js'
 import { runQuery } from '../../session/index.js'
 import { appendMessage, appendPart, getSession } from '../../storage/index.js'
@@ -92,6 +94,10 @@ export function messageRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
           description: 'Bad request',
           content: { 'application/json': { schema: ErrorSchema } },
         },
+        503: {
+          description: 'Agent credential storage unavailable',
+          content: { 'application/json': { schema: ErrorSchema } },
+        },
         429: {
           description: 'Too many active runs',
           content: { 'application/json': { schema: ErrorSchema } },
@@ -106,13 +112,17 @@ export function messageRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
       const session = getSession(ctx.db, sessionId, c.get('principal').subject)
       if (!session) return c.json({ error: 'session_not_found' }, 404)
 
-      const providerId = body.provider ?? session.provider ?? ctx.config.provider
-      const model = body.model ?? session.model ?? ctx.config.model
-      const provider = getProvider(providerId)
+      const settings = agentSettings(ctx.db, c.get('principal').subject)
+      const configured = settings.revision > 0
+      const providerId = configured ? settings.provider : body.provider ?? session.provider ?? ctx.config.provider
+      const model = configured ? settings.model : body.model ?? session.model ?? ctx.config.model
+      const provider = configured ? piProvider : getProvider(providerId)
       if (!provider) {
         return c.json({ error: `unknown_provider:${providerId}` }, 400)
       }
-      const apiKey = (await getAuthBackend().get(providerId)) ?? ''
+      let apiKey: string
+      try { apiKey = (configured ? agentApiKey(ctx.db, c.get('principal').subject) : await getAuthBackend().get(providerId)) ?? '' }
+      catch { return c.json({ error: 'agent_key_storage_unavailable' }, 503) }
       // Ollama uses apiKey as base URL; allow empty for default localhost.
       if (!apiKey && providerId !== 'ollama') {
         return c.json({ error: `no_credentials_for:${providerId}` }, 400)
@@ -160,7 +170,7 @@ export function messageRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
         provider,
         model,
         apiKey,
-        systemPrompt: body.systemPrompt ?? ctx.config.systemPrompt,
+        systemPrompt: configured ? [settings.systemPrompt, typeof session.meta.description === 'string' ? session.meta.description : '', body.systemPrompt ?? ''].filter(Boolean).join('\n\n') : body.systemPrompt ?? ctx.config.systemPrompt,
         tokenBudget: ctx.config.tokenBudget,
         maxTurns: ctx.config.maxTurns,
       }).finally(releaseRun)

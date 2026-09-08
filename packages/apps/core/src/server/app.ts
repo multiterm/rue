@@ -10,6 +10,7 @@ import { healthRoutes } from './routes/health.js'
 import { sessionRoutes } from './routes/sessions.js'
 import { messageRoutes } from './routes/messages.js'
 import { eventRoutes } from './routes/event.js'
+import { agentSettingsRoutes } from './routes/agent-settings.js'
 import { pairingRoutes } from './routes/pairing.js'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { appRouter } from '@multiterm/rue-trpc'
@@ -61,6 +62,7 @@ export function createApp(opts: AppOptions): OpenAPIHono<{ Variables: { ctx: Ser
   app.route('/', messageRoutes())
   app.route('/', eventRoutes())
   app.route('/', pairingRoutes())
+  app.route('/', agentSettingsRoutes())
   app.all('/trpc/*', (c) => fetchRequestHandler({
     endpoint: '/trpc',
     req: c.req.raw,

@@ -5,6 +5,8 @@ export { RueApiError } from './errors.js'
 export const RUE_SDK_VERSION = '0.2.0-b.0'
 
 export interface RueClientOptions { baseUrl:string; token?:string|(()=>string|undefined|Promise<string|undefined>); fetch?:typeof globalThis.fetch; eventRetryMs?:number; eventMaxRetryMs?:number }
+export interface RueAgentSettings { ownerSubject:string; harness:'pi'; provider:'openai'; model:string; systemPrompt:string; revision:number; apiKeyConfigured:boolean; keyStorageAvailable:boolean; models:string[] }
+export interface RueAgentSettingsInput { expectedOwnerSubject:string; harness:'pi'; provider:'openai'; model:string; systemPrompt:string; expectedRevision:number; apiKey?:string|null }
 export interface RueHealth { ok:boolean; version:string }
 export interface RueSession { id:string; title:string; agent:string|null; provider:string|null; model:string|null; directory:string|null; scopes:string[]; parentId:string|null; ownerSubject:string; createdAt:number; updatedAt:number; meta:Record<string,unknown> }
 export interface RueMessage { id:string; sessionId:string; role:'user'|'assistant'|'system'; time:number; provider:string|null; model:string|null; agent:string|null; meta:Record<string,unknown>; seq:number }
@@ -27,6 +29,8 @@ export function createRueClient(options:RueClientOptions){
   const request=async<T>(path:string,init:RequestInit={}):Promise<T>=>{const supplied=typeof options.token==='function'?await options.token():options.token;const headers=new Headers(init.headers);headers.set('accept','application/json');if(init.body)headers.set('content-type','application/json');if(supplied)headers.set('authorization',`Bearer ${supplied}`);const response=await requestFetch(`${baseUrl}${path}`,{...init,headers});if(!response.ok)throw new RueApiError(response.status,await response.text());return response.json() as Promise<T>}
   return {
     health:()=>request<RueHealth>('/health'),
+    agentSettings:()=>request<RueAgentSettings>('/agent/settings'),
+    saveAgentSettings:(input:RueAgentSettingsInput)=>request<RueAgentSettings>('/agent/settings',{method:'PUT',body:JSON.stringify(input)}),
     sessions:()=>request<RueSession[]>('/session'),
     session:(id:string)=>request<RueSession>(`/session/${encodeURIComponent(id)}`),
     createSession:(input:CreateSessionInput={})=>request<RueSession>('/session',{method:'POST',body:JSON.stringify(input)}),

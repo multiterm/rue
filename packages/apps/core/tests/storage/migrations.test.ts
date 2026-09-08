@@ -5,13 +5,13 @@ describe('storage: migrations', () => {
   it('is idempotent — opening twice does not re-apply migrations', () => {
     const d = openDatabase(':memory:')
     const rows = d.prepare('SELECT id, name FROM migrations').all()
-    expect(rows).toEqual([{ id: 1, name: 'init' }, { id: 2, name: 'session_ownership' }, { id: 3, name: 'device_pairing_and_sync' }])
+    expect(rows).toEqual([{ id: 1, name: 'init' }, { id: 2, name: 'session_ownership' }, { id: 3, name: 'device_pairing_and_sync' }, { id: 4, name: 'owner_agent_settings' }])
 
     // Re-running the migrator on the SAME db must be a no-op. We invoke
     // applyMigrations indirectly by re-running the schema check.
     d.exec('SELECT 1')
     const again = d.prepare('SELECT id FROM migrations').all()
-    expect(again).toHaveLength(3)
+    expect(again).toHaveLength(4)
   })
 
   it('creates all expected tables', () => {
@@ -32,6 +32,7 @@ describe('storage: migrations', () => {
       'devices',
       'device_pairings',
       'synced_preferences',
+      'agent_settings',
     ]) {
       expect(tables).toContain(expected)
     }

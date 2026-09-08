@@ -98,4 +98,36 @@ test('failed first message stays in the active chat with a retryable draft', asy
   await expect(composer).toHaveValue('Keep my message')
   await expect(page.getByRole('heading', { name: 'Chat with Retry bot' })).toBeVisible()
 })
+test('agent settings save account defaults and never refill or locally persist the API key', async ({ page }) => {
+  let saved = { ownerSubject: 'usr_test', harness: 'pi', provider: 'openai', model: 'gpt-4.1-mini', systemPrompt: 'Be helpful.', revision: 0, apiKeyConfigured: false, keyStorageAvailable: true, models: ['gpt-4.1-mini', 'gpt-5-mini'] }
+  const submitted: Array<Record<string, unknown>> = []
+  await page.route('http://localhost:4097/agent/settings', async route => {
+    if (route.request().method() === 'PUT') {
+      const input = route.request().postDataJSON(); submitted.push(input)
+      saved = { ...saved, model: input.model, systemPrompt: input.systemPrompt, revision: saved.revision + 1, apiKeyConfigured: input.apiKey === null ? false : input.apiKey ? true : saved.apiKeyConfigured }
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(saved) })
+  })
+  await page.goto('/login'); await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+  await page.getByRole('button', { name: 'Agent settings', exact: true }).click()
+  await page.getByLabel('Model', { exact: true }).selectOption('gpt-5-mini')
+  await page.getByLabel('System prompt').fill('Help me plan my day.')
+  await expect(page.getByLabel('OpenAI API key', { exact: true })).toHaveAttribute('type', 'password')
+  await page.getByLabel('OpenAI API key', { exact: true }).fill('test-provider-key')
+  await page.getByRole('button', { name: 'Save agent settings' }).click()
+  await expect(page.getByRole('dialog', { name: 'Agent settings' })).toHaveCount(0)
+  expect(submitted[0]).toMatchObject({ harness: 'pi', provider: 'openai', model: 'gpt-5-mini', systemPrompt: 'Help me plan my day.', apiKey: 'test-provider-key', expectedOwnerSubject: 'usr_test' })
+  await page.getByRole('button', { name: 'Agent settings', exact: true }).click()
+  await expect(page.getByLabel('OpenAI API key', { exact: true })).toHaveValue('')
+  await expect(page.getByLabel('System prompt')).toHaveValue('Help me plan my day.')
+  expect(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }))).not.toContain('test-provider-key')
+  await page.getByRole('button', { name: 'Save agent settings' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  expect(submitted[1]).not.toHaveProperty('apiKey')
+  await page.getByRole('button', { name: 'Agent settings', exact: true }).click()
+  await page.getByLabel('Remove saved API key').check()
+  await page.getByRole('button', { name: 'Save agent settings' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  expect(submitted[2]?.apiKey).toBeNull()
+})
 declare global{interface Window{__keynameMode?:string}}
