@@ -67,4 +67,35 @@ test('Keyname sign-in rejection shows a safe error instead of an unhandled promi
   await expect(page.locator('body')).not.toContainText('private-provider-diagnostic')
   expect(failures).toEqual([])
 })
+test('new and selected empty bots open chat and send to the active bot', async ({ page }) => {
+  await page.goto('/login'); await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+  for (const name of ['First bot', 'Second bot']) {
+    await page.getByRole('button', { name: 'Create bot', exact: true }).click()
+    await page.getByLabel('Bot name').fill(name)
+    await page.getByRole('button', { name: 'Add bot', exact: true }).click()
+    await expect(page.getByRole('heading', { name: `Chat with ${name}` })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Add new bot', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeEnabled()
+    if (name === 'First bot' && test.info().project.name === 'mobile') await page.getByRole('button', { name: '‹ Bots' }).click()
+  }
+  if (test.info().project.name === 'mobile') await page.getByRole('button', { name: '‹ Bots' }).click()
+  await page.getByRole('navigation', { name: 'Sessions' }).getByRole('button', { name: /First bot/ }).click()
+  await expect(page.getByRole('heading', { name: 'Chat with First bot' })).toBeVisible()
+  const sent = page.waitForRequest(r => r.method() === 'POST' && r.url().endsWith('/session/ses_1/message'))
+  await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Hello selected bot')
+  await page.getByRole('button', { name: 'Send message' }).click(); await sent
+  await expect(page.getByText('Hello selected bot', { exact: true })).toBeVisible()
+  await expect(page.getByText('Hello from Rue', { exact: true })).toBeVisible()
+})
+test('failed first message stays in the active chat with a retryable draft', async ({ page }) => {
+  await page.route('http://localhost:4097/session/*/message', r => r.fulfill({ status: 400, contentType: 'application/json', body: '{"error":"no_credentials_for:openrouter"}' }))
+  await page.goto('/login'); await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+  await page.getByRole('button', { name: 'Create first bot' }).click()
+  await page.getByLabel('Bot name').fill('Retry bot'); await page.getByRole('button', { name: 'Add bot', exact: true }).click()
+  const composer = page.getByRole('textbox', { name: 'Message', exact: true })
+  await composer.fill('Keep my message'); await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.getByRole('alert')).toContainText('Your draft has been kept')
+  await expect(composer).toHaveValue('Keep my message')
+  await expect(page.getByRole('heading', { name: 'Chat with Retry bot' })).toBeVisible()
+})
 declare global{interface Window{__keynameMode?:string}}
