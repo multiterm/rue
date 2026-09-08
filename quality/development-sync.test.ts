@@ -11,7 +11,7 @@ test('development checks run only after native-worker dependencies and libraries
   expect(run.mock.calls[0]![0]).toContain('none')
   expect(run.mock.calls[1]![0]).toContain('full')
   expect(build).toHaveBeenCalledWith('/fixture', 'https://api.sandblocks.dev')
-  for (const [command] of run.mock.calls) expect(command).toContain('develop')
+  for (const [command] of run.mock.calls) expect(command).toContain('development')
 })
 test('failed native build prevents deployment checks', async () => {
   const run = vi.fn(async () => {})
@@ -20,12 +20,13 @@ test('failed native build prevents deployment checks', async () => {
   expect(run).toHaveBeenCalledTimes(1)
 })
 test('native build is explicitly worker-bound and uses frozen dependency installation', () => {
-  const request = developmentBuildPayload({ environment: 'develop', runtimeMode: 'development', workerId: 'worker', workspaceId: 'workspace', sandboxId: 'sandbox', sourceRevision: 'revision' })
+  const request = developmentBuildPayload({ environment: 'development', runtimeMode: 'development', workerId: 'worker', workspaceId: 'workspace', sandboxId: 'sandbox', sourceRevision: 'revision' })
   expect(request.kind).toBe('workspace.step.run')
+  expect(request.payload.runtimeType).toBe('development')
   expect(request.payload.placement).toEqual({ workerId: 'worker', requiredWorkerRole: 'development' })
   expect(request.payload.steps[0].command).toContain('--frozen-lockfile')
   expect(request.payload.steps[1].outputs).toContain('packages/libs/sdk/dist')
 })
-test.each(['preview', 'production'])('native build refuses %s state', (environment) => {
+test.each(['develop', 'preview', 'production'])('native build refuses %s state', (environment) => {
   expect(() => developmentBuildPayload({ environment, runtimeMode: 'development' })).toThrow('bound development workspace')
 })

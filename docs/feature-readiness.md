@@ -27,9 +27,9 @@ From this repository, using the existing protected `.sandblocks` state records:
 
 ```sh
 node scripts/deployment/sync-development.mjs --api-url https://api.sandblocks.dev
-node scripts/review/check-deployment.mjs develop --smoke
+node scripts/review/check-deployment.mjs development --smoke
 node scripts/review/check-deployment.mjs preview --smoke
-pnpm exec rune review-develop
+pnpm exec rune review-development
 pnpm exec rune review-preview
 ```
 
@@ -71,7 +71,7 @@ exceptions or coverage/complexity allowances were added.
    live provider tests. Make permissions, cancellation and restart behavior explicit.
 4. Build a new immutable preview candidate. Promoted sandboxes are immutable:
    do not remove that fence or destroy the old workspace to force redeployment.
-5. Validate the candidate before changing aliases; retain rollback and storage backup.
+5. Preview uses direct sandbox URLs only; do not promote preview aliases. Only production builds receive promotion URLs. Retain rollback and storage backup.
 6. Add scoped deployment tools and externally approved self-update workflows.
 7. Complete native-device and desktop/TUI evidence. Mark missing prerequisites as
    blocked, never silently skipped or replaced with screenshots.

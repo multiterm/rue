@@ -4,12 +4,12 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 
 export function developmentBuildPayload(state) {
-  if (state.environment !== 'develop' || state.runtimeMode !== 'development' || !state.workerId || !state.workspaceId || !state.sandboxId || !state.sourceRevision) throw new Error('A bound development workspace is required')
+  if (state.environment !== 'development' || state.runtimeMode !== 'development' || !state.workerId || !state.workspaceId || !state.sandboxId || !state.sourceRevision) throw new Error('A bound development workspace is required')
   return {
     kind: 'workspace.step.run', maxAttempts: 1,
     payload: {
       workspaceId: state.workspaceId, sandboxId: state.sandboxId,
-      revisionId: state.sourceRevision, runtimeType: 'develop', workspaceImage: 'node:22-bookworm',
+      revisionId: state.sourceRevision, runtimeType: 'development', workspaceImage: 'node:22-bookworm',
       placement: { workerId: state.workerId, ...(state.hostId ? { hostId: state.hostId } : {}), requiredWorkerRole: 'development' },
       steps: [
         { id: 'workspace-setup', command: ['corepack', 'pnpm', 'install', '--frozen-lockfile', '--config.minimumReleaseAge=0'], workingDirectory: '.', timeoutSeconds: 1800, inputs: ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'], outputs: [], required: true },
@@ -23,7 +23,7 @@ export function developmentBuildPayload(state) {
 export async function buildDevelopmentLibraries(root, apiUrl) {
   let state, local
   try {
-    state = JSON.parse(await readFile(join(root, '.sandblocks/sandbox-develop.json'), 'utf8'))
+    state = JSON.parse(await readFile(join(root, '.sandblocks/sandbox-development.json'), 'utf8'))
     local = parseEnv(await readFile(join(root, '.sandblocks/config.env'), 'utf8'))
   } catch { throw new Error('Protected development configuration is missing or invalid') }
   const config = { ...local, ...process.env }

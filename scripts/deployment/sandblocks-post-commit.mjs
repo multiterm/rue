@@ -6,18 +6,18 @@ import {join,resolve} from 'node:path'
 const root=resolve(import.meta.dirname,'../..')
 if(process.env.SANDBLOCKS_SKIP_POST_COMMIT==='1')process.exit(0)
 const branch=git(['branch','--show-current'])
-const environment=branch==='develop'?'develop':branch==='pre'?'preview':branch==='prod'?'production':undefined
+const environment=branch==='develop'?'development':branch==='pre'?'preview':branch==='prod'?'production':undefined
 if(!environment){console.log(`sandblocks post-commit skipped on branch ${branch||'(detached)'}`);process.exit(0)}
 if(git(['status','--porcelain'])){console.log(`sandblocks post-commit skipped: worktree is dirty after commit on ${branch}`);process.exit(0)}
 const sandblocks=join(root,'node_modules/.bin/sandblocks')
 if(!existsSync(sandblocks)){console.log('sandblocks post-commit skipped: install dependencies first');process.exit(0)}
 const stateFile=join(root,`.sandblocks/sandbox-${environment}.json`)
-const command=existsSync(stateFile)?(environment==='develop'?'sync':'redeploy'):'up'
+const command=existsSync(stateFile)?(environment==='development'?'sync':'redeploy'):'up'
 const logDir=join(root,'.sandblocks/logs');await mkdir(logDir,{recursive:true,mode:0o700})
 const logPath=join(logDir,`post-commit-${branch}-${Date.now()}.log`);const log=await open(logPath,'a',0o600)
 const localEnv=readEnv(join(root,'.sandblocks/config.env'))
 const childEnv={...localEnv,...process.env,SANDBLOCKS_SKIP_POST_COMMIT:'1',SANDBLOCKS_RETAIN_FAILED:'true'}
-if(environment==='develop')delete childEnv.SANDBLOCKS_SANDBOX_TARGET_HOST
+if(environment==='development')delete childEnv.SANDBLOCKS_SANDBOX_TARGET_HOST
 const sync=command==='sync'
 const executable=sync?process.execPath:sandblocks
 const args=sync?[join(root,'scripts/deployment/sync-development.mjs')]:['sandbox',command,root,'--environment',environment]

@@ -23,10 +23,10 @@ async function run(smoke: boolean, cursorAllowed = true) {
   const directory = await mkdtemp(join(tmpdir(), 'rue-review-'))
   try {
     await mkdir(join(directory, '.sandblocks'))
-    await writeFile(join(directory, '.sandblocks/sandbox-develop.json'), JSON.stringify({ sandboxId: 'fixture', previewUrls: ['api', 'webapp', 'site', 'docs'].map((service) => ({ service, url: `http://127.0.0.1:${address.port}` })) }))
+    await writeFile(join(directory, '.sandblocks/sandbox-development.json'), JSON.stringify({ sandboxId: 'fixture', previewUrls: ['api', 'webapp', 'site', 'docs'].map((service) => ({ service, url: `http://127.0.0.1:${address.port}` })) }))
     const env = { ...process.env }
     delete env.RUE_TEST_TOKEN; delete env.RUE_OTHER_TEST_TOKEN; delete env.RUE_TEST_ALLOW_MUTATIONS
-    const child = spawn(process.execPath, [fileURLToPath(new URL('../scripts/review/check-deployment.mjs', import.meta.url)), 'develop', ...(smoke ? ['--smoke'] : [])], { cwd: directory, env, stdio: 'ignore' })
+    const child = spawn(process.execPath, [fileURLToPath(new URL('../scripts/review/check-deployment.mjs', import.meta.url)), 'development', ...(smoke ? ['--smoke'] : [])], { cwd: directory, env, stdio: 'ignore' })
     const code = await new Promise<number | null>((resolve, reject) => { child.on('exit', resolve); child.on('error', reject) })
     const reportDirectory = join(directory, '.sandblocks/reports')
     const files = await readdir(reportDirectory)

@@ -15,7 +15,7 @@ quality-static: rune format-check && rune typecheck && rune test && rune build &
 quality-playwright: playwright test --config quality/playwright.config.ts
 quality-deployed: rune quality-playwright
 sync-development: node scripts/deployment/sync-development.mjs
-review-develop: node scripts/review/check-deployment.mjs develop
+review-development: node scripts/review/check-deployment.mjs development
 review-preview: node scripts/review/check-deployment.mjs preview
 quality: rune quality-static && rune test-e2e
 clean: pnpm -r exec rm -rf dist node_modules && rm -rf node_modules

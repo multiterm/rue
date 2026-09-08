@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { buildDevelopmentLibraries } from './build-development-libraries.mjs'
 
 export async function syncDevelopment(run, root, apiUrl, build = buildDevelopmentLibraries) {
-  const common = [root, '--environment', 'develop', ...(apiUrl ? ['--api-url', apiUrl] : [])]
+  const common = [root, '--environment', 'development', ...(apiUrl ? ['--api-url', apiUrl] : [])]
   await run(['sandbox', 'sync', ...common, '--checks', 'none'])
   // Source synchronization alone does not refresh installed packages or SDK dist.
   await build(root, apiUrl)

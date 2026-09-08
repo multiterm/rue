@@ -36,4 +36,35 @@ test('reconnecting the stream refreshes externally changed session state', async
     expect(connections).toBeGreaterThanOrEqual(2)
   } finally { release() }
 })
+test('bot creation accepts a name without requiring a description', async ({ page }) => {
+  await page.goto('/login'); await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+  await page.getByRole('button', { name: 'Create first bot' }).click()
+  await page.getByLabel('Bot name').fill('Minimal bot')
+  await page.getByRole('button', { name: 'Add bot', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Add new bot' })).toHaveCount(0)
+  await expect(page.locator('.conversation-header')).toContainText('Minimal bot')
+})
+test('a rejected bot creation displays an error and retains the draft for retry', async ({ page }) => {
+  await page.route('http://localhost:4097/session', async (route) => {
+    if (route.request().method() === 'POST') return route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"KEYNAME_AUTH_INVALID"}' })
+    return route.fallback()
+  })
+  await page.goto('/login'); await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+  await page.getByRole('button', { name: 'Create first bot' }).click()
+  await page.getByLabel('Bot name').fill('Keep this draft')
+  await page.getByRole('button', { name: 'Add bot', exact: true }).click()
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Your draft has been kept')
+  await expect(page.getByLabel('Bot name')).toHaveValue('Keep this draft')
+  await expect(page.getByRole('button', { name: 'Add bot', exact: true })).toBeEnabled()
+})
+test('Keyname sign-in rejection shows a safe error instead of an unhandled promise', async ({ page }) => {
+  const failures: string[] = []; page.on('pageerror', () => failures.push('unhandled'))
+  await page.goto('/login')
+  await expect(page.getByRole('button', { name: /Sign in with Keyname/ })).toBeEnabled()
+  await page.evaluate(() => { window.Keyname!.signIn = async () => { throw new Error('private-provider-diagnostic') } })
+  await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+  await expect(page.getByRole('alert')).toContainText('Could not complete Keyname sign-in')
+  await expect(page.locator('body')).not.toContainText('private-provider-diagnostic')
+  expect(failures).toEqual([])
+})
 declare global{interface Window{__keynameMode?:string}}

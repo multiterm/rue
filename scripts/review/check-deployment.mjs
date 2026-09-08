@@ -3,7 +3,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 
 const environment = process.argv[2]
-if (!['develop', 'preview'].includes(environment)) throw new Error('Use develop or preview; production is not permitted by this review runner')
+if (!['development', 'preview'].includes(environment)) throw new Error('Use development or preview; production is not permitted by this review runner')
 const smoke = process.argv.includes('--smoke')
 let state
 try { state = JSON.parse(await readFile(`.sandblocks/sandbox-${environment}.json`, 'utf8')) }
