@@ -4,8 +4,12 @@ packages:
 
 overrides:
   decode-uri-component: 0.5.0
+  'js-yaml@>=4.0.0 <4.3.2': 4.3.2
 
 allowBuilds:
+  # Pi's unused Google SDK preinstall is a no-op; protobufjs only prints a version warning.
+  '@google/genai': false
+  protobufjs: false
   better-sqlite3: true
   electron: true
   electron-winstaller: true

@@ -15,4 +15,160 @@ test('creates a QR, link, and fallback code for another device',async({page})=>{
 test('redeems a pairing link after Keyname authentication',async({page})=>{await page.goto('/link?token=pair-secret');await page.getByRole('button',{name:/Sign in with Keyname/}).click();await expect(page.getByText('Device linked. Your Rue sessions are ready.')).toBeVisible()})
 test('bot workspace supports bot creation and deletion',async({page})=>{await page.goto('/login');await page.getByRole('button',{name:/Sign in with Keyname/}).click();await page.getByRole('button',{name:'Create first bot'}).click();await expect(page.getByRole('dialog',{name:'Add new bot'})).toBeVisible();await page.getByLabel('Bot name').fill('Research partner');await page.getByLabel('Description').fill('Finds evidence and summarizes decisions.');await page.getByRole('button',{name:'Add bot'}).click();await expect(page.locator('.conversation-header').getByText('Research partner',{exact:true})).toBeVisible();await expect(page.getByRole('textbox',{name:'Message',exact:true})).toHaveAttribute('placeholder','Message Research partner');await expect(page.getByLabel('Sessions').getByText('Finds evidence and summarizes decisions.')).toHaveText('Finds evidence and summarizes decisions.');await page.getByLabel('Workspace options').click();await page.getByRole('button',{name:'Delete bot'}).click();await expect(page.getByRole('dialog',{name:'Delete bot?'})).toBeVisible();await page.getByRole('dialog',{name:'Delete bot?'}).getByRole('button',{name:'Delete bot'}).click();await expect(page.getByText('Your Rue crew starts here.')).toBeVisible()})
 test('bot workspace matches the approved responsive visual layout',async({page})=>{await page.goto('/login');await page.getByRole('button',{name:/Sign in with Keyname/}).click();await page.getByRole('button',{name:'Create first bot'}).click();await page.getByLabel('Bot name').fill('Chief of Staff');await page.getByLabel('Description').fill('Plans the day and keeps work moving.');await page.getByRole('button',{name:'Add bot'}).click();await page.getByRole('textbox',{name:'Message',exact:true}).fill('Prepare tomorrow’s briefing');await page.getByRole('button',{name:'Send message'}).click();await expect(page.getByText('Hello from Rue')).toBeVisible();await expect(page).toHaveScreenshot('rue-bot-workspace.png',{animations:'disabled',fullPage:true})})
+test('reconnecting the stream refreshes externally changed session state', async ({ page }) => {
+  let connections = 0
+  let release!: () => void
+  const firstConnection = new Promise<void>((resolve) => { release = resolve })
+  await page.route('http://localhost:4097/session', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([
+    { id: 'ses_external', title: connections >= 2 ? 'Changed on another client' : 'Before reconnect', agent: null, provider: 'test', model: 'test', directory: null, scopes: [], parentId: null, ownerSubject: 'usr_test', createdAt: 1, updatedAt: 2, meta: {} },
+  ]) }))
+  await page.route('http://localhost:4097/event', async (route) => {
+    connections++
+    if (connections === 1) await firstConnection
+    await route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'data: {"id":0,"type":"hello","time":1,"payload":{}}\n\n' })
+  })
+  try {
+    await page.goto('/login')
+    await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+    await expect(page.getByLabel('Sessions')).toContainText('Before reconnect')
+    release()
+    await expect(page.getByLabel('Sessions')).toContainText('Changed on another client')
+    expect(connections).toBeGreaterThanOrEqual(2)
+  } finally { release() }
+})
+test('bot creation accepts a name without requiring a description', async ({ page }) => {
+  await page.goto('/login'); await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+  await page.getByRole('button', { name: 'Create first bot' }).click()
+  await page.getByLabel('Bot name').fill('Minimal bot')
+  await page.getByRole('button', { name: 'Add bot', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Add new bot' })).toHaveCount(0)
+  await expect(page.locator('.conversation-header')).toContainText('Minimal bot')
+})
+test('a rejected bot creation displays an error and retains the draft for retry', async ({ page }) => {
+  await page.route('http://localhost:4097/session', async (route) => {
+    if (route.request().method() === 'POST') return route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"KEYNAME_AUTH_INVALID"}' })
+    return route.fallback()
+  })
+  await page.goto('/login'); await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+  await page.getByRole('button', { name: 'Create first bot' }).click()
+  await page.getByLabel('Bot name').fill('Keep this draft')
+  await page.getByRole('button', { name: 'Add bot', exact: true }).click()
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Your draft has been kept')
+  await expect(page.getByLabel('Bot name')).toHaveValue('Keep this draft')
+  await expect(page.getByRole('button', { name: 'Add bot', exact: true })).toBeEnabled()
+})
+test('Keyname sign-in rejection shows a safe error instead of an unhandled promise', async ({ page }) => {
+  const failures: string[] = []; page.on('pageerror', () => failures.push('unhandled'))
+  await page.goto('/login')
+  await expect(page.getByRole('button', { name: /Sign in with Keyname/ })).toBeEnabled()
+  await page.evaluate(() => { window.Keyname!.signIn = async () => { throw new Error('private-provider-diagnostic') } })
+  await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+  await expect(page.getByRole('alert')).toContainText('Could not complete Keyname sign-in')
+  await expect(page.locator('body')).not.toContainText('private-provider-diagnostic')
+  expect(failures).toEqual([])
+})
+test('new and selected empty bots open chat and send to the active bot', async ({ page }) => {
+  await page.goto('/login'); await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+  for (const name of ['First bot', 'Second bot']) {
+    await page.getByRole('button', { name: 'Create bot', exact: true }).click()
+    await page.getByLabel('Bot name').fill(name)
+    await page.getByRole('button', { name: 'Add bot', exact: true }).click()
+    await expect(page.getByRole('heading', { name: `Chat with ${name}` })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Add new bot', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeEnabled()
+    if (name === 'First bot' && test.info().project.name === 'mobile') await page.getByRole('button', { name: '‹ Bots' }).click()
+  }
+  if (test.info().project.name === 'mobile') await page.getByRole('button', { name: '‹ Bots' }).click()
+  await page.getByRole('navigation', { name: 'Sessions' }).getByRole('button', { name: /First bot/ }).click()
+  await expect(page.getByRole('heading', { name: 'Chat with First bot' })).toBeVisible()
+  const sent = page.waitForRequest(r => r.method() === 'POST' && r.url().endsWith('/session/ses_1/message'))
+  await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Hello selected bot')
+  await page.getByRole('button', { name: 'Send message' }).click(); await sent
+  await expect(page.getByText('Hello selected bot', { exact: true })).toBeVisible()
+  await expect(page.getByText('Hello from Rue', { exact: true })).toBeVisible()
+})
+test('failed first message stays in the active chat with a retryable draft', async ({ page }) => {
+  await page.route('http://localhost:4097/session/*/message', r => r.fulfill({ status: 400, contentType: 'application/json', body: '{"error":"no_credentials_for:openrouter"}' }))
+  await page.goto('/login'); await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+  await page.getByRole('button', { name: 'Create first bot' }).click()
+  await page.getByLabel('Bot name').fill('Retry bot'); await page.getByRole('button', { name: 'Add bot', exact: true }).click()
+  const composer = page.getByRole('textbox', { name: 'Message', exact: true })
+  await composer.fill('Keep my message'); await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.getByRole('alert')).toContainText('Your draft has been kept')
+  await expect(composer).toHaveValue('Keep my message')
+  await expect(page.getByRole('heading', { name: 'Chat with Retry bot' })).toBeVisible()
+})
+test('agent settings save account defaults and never refill or locally persist the API key', async ({ page }) => {
+  let saved = { ownerSubject: 'usr_test', harness: 'pi', provider: 'openai', model: 'gpt-4.1-mini', systemPrompt: 'Be helpful.', revision: 0, apiKeyConfigured: false, keyStorageAvailable: true, models: ['gpt-4.1-mini', 'gpt-5-mini'] }
+  const submitted: Array<Record<string, unknown>> = []
+  await page.route('http://localhost:4097/agent/settings', async route => {
+    if (route.request().method() === 'PUT') {
+      const input = route.request().postDataJSON(); submitted.push(input)
+      saved = { ...saved, model: input.model, systemPrompt: input.systemPrompt, revision: saved.revision + 1, apiKeyConfigured: input.apiKey === null ? false : input.apiKey ? true : saved.apiKeyConfigured }
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(saved) })
+  })
+  await page.goto('/login'); await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+  await page.locator('summary:visible').click()
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Settings', exact: true })
+  await expect(dialog.getByText('Personalize your workspace and manage your agent preferences.')).toBeVisible()
+  const frame = dialog.locator('.rue-settings-page-frame')
+  const frameBox = await frame.boundingBox()
+  const layoutBox = await dialog.locator('.rue-settings-layout').boundingBox()
+  expect(frameBox && layoutBox && frameBox.y > layoutBox.y && frameBox.y + frameBox.height < layoutBox.y + layoutBox.height && frameBox.x + frameBox.width < layoutBox.x + layoutBox.width).toBe(true)
+  const frameStyle = await frame.evaluate(element => {
+    const style = getComputedStyle(element)
+    return { radius: parseFloat(style.borderTopLeftRadius), margins: [style.marginTop, style.marginRight, style.marginBottom, style.marginLeft].map(parseFloat) }
+  })
+  expect(frameStyle.radius).toBeGreaterThan(0)
+  expect(frameStyle.margins.every(value => value > 0 && value === frameStyle.margins[0])).toBe(true)
+  await expect(page.locator('.bot-profile').getByRole('button', { name: 'Settings' })).toHaveCount(0)
+  await expect(dialog.getByRole('tabpanel', { name: 'General', exact: true })).toBeVisible()
+  for (const category of ['General', 'Agent', 'Security', 'Developer']) await expect(dialog.getByRole('tab', { name: category, exact: true })).toBeVisible()
+  await dialog.getByRole('tab', { name: 'General', exact: true }).press('End')
+  await expect(dialog.getByRole('tab', { name: 'Developer', exact: true })).toBeFocused()
+  await dialog.getByRole('tab', { name: 'Developer', exact: true }).press('Home')
+  await dialog.getByRole('tab', { name: 'General', exact: true }).press('ArrowDown')
+  await expect(dialog.getByRole('tab', { name: 'Agent', exact: true })).toBeFocused()
+  for (const name of ['Agent harness', 'Model provider', 'Model', 'System prompt', 'OpenAI API key']) {
+    const label = await dialog.locator('label').filter({ hasText: new RegExp(`^${name}$`) }).boundingBox()
+    const control = await dialog.getByLabel(name, { exact: true }).boundingBox()
+    expect(label && control && label.y + label.height <= control.y).toBe(true)
+  }
+  await page.getByRole('combobox', { name: 'Model', exact: true }).click()
+  await page.getByRole('option', { name: 'gpt-5-mini', exact: true }).click()
+  await page.getByLabel('System prompt').fill('Help me plan my day.')
+  await expect(page.getByLabel('OpenAI API key', { exact: true })).toHaveAttribute('type', 'password')
+  await page.getByLabel('OpenAI API key', { exact: true }).fill('test-provider-key')
+  await dialog.getByRole('tab', { name: 'Security', exact: true }).click()
+  await expect(dialog.getByRole('tabpanel', { name: 'Security', exact: true })).toBeVisible()
+  await dialog.getByRole('tab', { name: 'Developer', exact: true }).click()
+  await expect(dialog.getByRole('tabpanel', { name: 'Developer', exact: true })).toBeVisible()
+  await dialog.getByRole('tab', { name: 'Agent', exact: true }).click()
+  await expect(page.getByLabel('System prompt')).toHaveValue('Help me plan my day.')
+  await expect(page.getByLabel('OpenAI API key', { exact: true })).toHaveValue('test-provider-key')
+  const sidebar = await dialog.getByRole('tablist').boundingBox()
+  const content = await dialog.getByRole('tabpanel', { name: 'Agent', exact: true }).boundingBox()
+  expect(sidebar && content && sidebar.x + sidebar.width <= content.x).toBe(true)
+  await page.getByRole('button', { name: 'Save agent settings' }).click()
+  await expect(dialog).toHaveCount(0)
+  expect(submitted[0]).toMatchObject({ harness: 'pi', provider: 'openai', model: 'gpt-5-mini', systemPrompt: 'Help me plan my day.', apiKey: 'test-provider-key', expectedOwnerSubject: 'usr_test' })
+  await page.locator('summary:visible').click()
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.getByRole('tab', { name: 'Agent', exact: true }).click()
+  await expect(page.getByLabel('OpenAI API key', { exact: true })).toHaveValue('')
+  await expect(page.getByLabel('System prompt')).toHaveValue('Help me plan my day.')
+  expect(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }))).not.toContain('test-provider-key')
+  await page.getByRole('button', { name: 'Save agent settings' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  expect(submitted[1]).not.toHaveProperty('apiKey')
+  await page.locator('summary:visible').click()
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.getByRole('tab', { name: 'Agent', exact: true }).click()
+  await page.getByLabel('Remove saved API key').check()
+  await page.getByRole('button', { name: 'Save agent settings' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  expect(submitted[2]?.apiKey).toBeNull()
+})
 declare global{interface Window{__keynameMode?:string}}
