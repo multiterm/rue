@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from '@tanstack/react-form'
-import { Button, Checkbox, Dialog, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from '@multiterm/rue-ui'
+import { Button, Checkbox, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from '@multiterm/rue-ui'
 import { RueApiError, type RueAgentSettings } from '@multiterm/rue-sdk'
 import { rue } from './client'
 
 export function AgentSettingsPanel({ owner, onClose }: { owner: string; onClose(): void }) {
   const settings = useQuery({ queryKey: ['agent-settings', owner], queryFn: () => rue.agentSettings(), retry: false })
-  return <Dialog open onClose={onClose} className="max-h-[calc(100dvh-40px)] overflow-y-auto" title="Agent settings" description="Your account's bot defaults. Changes apply to the next message, including existing bots.">
+  return <div>
+    <p className="mb-5 text-sm text-muted">Your account’s bot defaults. Changes apply to the next message, including existing bots.</p>
     {settings.isPending ? <p role="status">Loading agent settings…</p> : !settings.data || settings.data.ownerSubject !== owner ? <p role="alert">Could not load your agent settings. Close and try again.</p> : <AgentSettingsForm initial={settings.data} onClose={onClose}/>}
-  </Dialog>
+  </div>
 }
 function AgentSettingsForm({ initial: incoming, onClose }: { initial: RueAgentSettings; onClose(): void }) {
   const [initial] = useState(incoming)

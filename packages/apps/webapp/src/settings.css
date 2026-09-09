@@ -1,0 +1,9 @@
+.rue-settings-dialog{display:flex;flex-direction:column;width:min(900px,calc(100vw - 40px));max-width:900px;height:min(760px,calc(100dvh - 40px));min-height:0;overflow:hidden}
+.rue-settings-dialog>header{flex-shrink:0}
+.rue-settings-layout{display:grid;grid-template-columns:160px minmax(0,1fr);flex:1;min-height:0;gap:24px}
+.rue-settings-sidebar{display:flex;flex-direction:column;gap:6px;border-right:1px solid var(--rue-border);padding-right:16px;overflow-y:auto}
+.rue-settings-sidebar>button{justify-content:flex-start;min-height:40px}
+.rue-settings-content{min-width:0;overflow-y:auto;overscroll-behavior:contain;padding-right:4px}
+.rue-settings-content [role=tabpanel][hidden]{display:none}
+.rue-settings-content [role=tabpanel]:focus-visible{outline:2px solid var(--rue-border-strong);outline-offset:-2px}
+@media(max-width:600px){.rue-settings-dialog{padding:16px;width:calc(100vw - 24px);max-height:calc(100dvh - 24px)}.rue-settings-layout{grid-template-columns:100px minmax(0,1fr);gap:12px}.rue-settings-sidebar{padding-right:8px}.rue-settings-sidebar>button{padding-inline:8px;font-size:12px}.rue-settings-content .bot-dialog-actions{flex-direction:column}.rue-settings-content p{overflow-wrap:anywhere}}
