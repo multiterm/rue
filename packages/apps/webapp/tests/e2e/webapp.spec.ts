@@ -112,6 +112,17 @@ test('agent settings save account defaults and never refill or locally persist t
   await page.locator('summary:visible').click()
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Settings', exact: true })
+  await expect(dialog.getByText('Personalize your workspace and manage your agent preferences.')).toBeVisible()
+  const frame = dialog.locator('.rue-settings-page-frame')
+  const frameBox = await frame.boundingBox()
+  const layoutBox = await dialog.locator('.rue-settings-layout').boundingBox()
+  expect(frameBox && layoutBox && frameBox.y > layoutBox.y && frameBox.y + frameBox.height < layoutBox.y + layoutBox.height && frameBox.x + frameBox.width < layoutBox.x + layoutBox.width).toBe(true)
+  const frameStyle = await frame.evaluate(element => {
+    const style = getComputedStyle(element)
+    return { radius: parseFloat(style.borderTopLeftRadius), margins: [style.marginTop, style.marginRight, style.marginBottom, style.marginLeft].map(parseFloat) }
+  })
+  expect(frameStyle.radius).toBeGreaterThan(0)
+  expect(frameStyle.margins.every(value => value > 0 && value === frameStyle.margins[0])).toBe(true)
   await expect(page.locator('.bot-profile').getByRole('button', { name: 'Settings' })).toHaveCount(0)
   await expect(dialog.getByRole('tabpanel', { name: 'General', exact: true })).toBeVisible()
   for (const category of ['General', 'Agent', 'Security', 'Developer']) await expect(dialog.getByRole('tab', { name: category, exact: true })).toBeVisible()
