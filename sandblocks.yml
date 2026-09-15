@@ -1,5 +1,5 @@
 version: 2
-name: multiterm-rue
+name: rue
 
 workspace:
   image: node:22-bookworm
