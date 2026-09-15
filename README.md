@@ -47,4 +47,4 @@ pnpm exec rune release-dry
 pnpm exec rune release
 ```
 
-Sandblocks-reserved branches map `develop` → HMR `develop`, `pre` → immutable `preview`, and `prod` → immutable `production`; ordinary feature and release branches never deploy. Install the branch-aware background and local quality hooks with `pnpm exec rune sandblocks-hooks-install`. Quality gates run locally and inside Sandblocks without depending on GitHub Actions. The public SDK is [`@multiterm/rue-sdk`](./packages/libs/sdk).
+Sandblocks-reserved branches map `develop` → HMR `development`, `pre` → immutable `preview`, and `prod` → immutable `production`; ordinary feature and release branches never deploy. Install the branch-aware background and local quality hooks with `pnpm exec rune sandblocks-hooks-install`. Quality gates run locally and inside Sandblocks without depending on GitHub Actions. The public SDK is [`@multiterm/rue-sdk`](./packages/libs/sdk).

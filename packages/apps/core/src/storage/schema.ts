@@ -145,4 +145,14 @@ export const MIGRATIONS: ReadonlyArray<{ id: number; name: string; sql: string }
       );
     `,
   },
+  {
+    id: 4,
+    name: 'owner_agent_settings',
+    sql: `CREATE TABLE agent_settings (
+      owner_subject TEXT PRIMARY KEY,
+      settings TEXT NOT NULL,
+      encrypted_key TEXT,
+      revision INTEGER NOT NULL
+    );`,
+  },
 ]

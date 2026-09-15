@@ -1,6 +1,12 @@
+import { createRueEventStream } from './events.js'
+import { RueApiError } from './errors.js'
+export { RueApiError } from './errors.js'
+
 export const RUE_SDK_VERSION = '0.2.0-b.0'
 
-export interface RueClientOptions { baseUrl:string; token?:string|(()=>string|undefined|Promise<string|undefined>); fetch?:typeof globalThis.fetch }
+export interface RueClientOptions { baseUrl:string; token?:string|(()=>string|undefined|Promise<string|undefined>); fetch?:typeof globalThis.fetch; eventRetryMs?:number; eventMaxRetryMs?:number }
+export interface RueAgentSettings { ownerSubject:string; harness:'pi'; provider:'openai'; model:string; systemPrompt:string; revision:number; apiKeyConfigured:boolean; keyStorageAvailable:boolean; models:string[] }
+export interface RueAgentSettingsInput { expectedOwnerSubject:string; harness:'pi'; provider:'openai'; model:string; systemPrompt:string; expectedRevision:number; apiKey?:string|null }
 export interface RueHealth { ok:boolean; version:string }
 export interface RueSession { id:string; title:string; agent:string|null; provider:string|null; model:string|null; directory:string|null; scopes:string[]; parentId:string|null; ownerSubject:string; createdAt:number; updatedAt:number; meta:Record<string,unknown> }
 export interface RueMessage { id:string; sessionId:string; role:'user'|'assistant'|'system'; time:number; provider:string|null; model:string|null; agent:string|null; meta:Record<string,unknown>; seq:number }
@@ -23,6 +29,8 @@ export function createRueClient(options:RueClientOptions){
   const request=async<T>(path:string,init:RequestInit={}):Promise<T>=>{const supplied=typeof options.token==='function'?await options.token():options.token;const headers=new Headers(init.headers);headers.set('accept','application/json');if(init.body)headers.set('content-type','application/json');if(supplied)headers.set('authorization',`Bearer ${supplied}`);const response=await requestFetch(`${baseUrl}${path}`,{...init,headers});if(!response.ok)throw new RueApiError(response.status,await response.text());return response.json() as Promise<T>}
   return {
     health:()=>request<RueHealth>('/health'),
+    agentSettings:()=>request<RueAgentSettings>('/agent/settings'),
+    saveAgentSettings:(input:RueAgentSettingsInput)=>request<RueAgentSettings>('/agent/settings',{method:'PUT',body:JSON.stringify(input)}),
     sessions:()=>request<RueSession[]>('/session'),
     session:(id:string)=>request<RueSession>(`/session/${encodeURIComponent(id)}`),
     createSession:(input:CreateSessionInput={})=>request<RueSession>('/session',{method:'POST',body:JSON.stringify(input)}),
@@ -39,11 +47,7 @@ export function createRueClient(options:RueClientOptions){
     redeemPairing:(input:RueDeviceInput&({token:string}|{code:string}))=>request<{device:RueDevice;pairingId:string;synced:boolean}>('/pairing/redeem',{method:'POST',body:JSON.stringify(input)}),
     preferences:()=>request<RuePreference[]>('/sync/preferences'),
     setPreference:(key:string,input:{value:unknown;deviceId?:string;expectedVersion?:number})=>request<RuePreference>(`/sync/preferences/${encodeURIComponent(key)}`,{method:'PUT',body:JSON.stringify(input)}),
-    events:(signal?:AbortSignal)=>createRueEventStream(`${baseUrl}/event`,options.token,requestFetch,signal),
+    events:(signal?:AbortSignal)=>createRueEventStream(`${baseUrl}/event`,options.token,requestFetch,signal,{retryMs:options.eventRetryMs,maxRetryMs:options.eventMaxRetryMs}),
     request,
   }
 }
-
-async function* createRueEventStream(url:string,token:RueClientOptions['token'],requestFetch:typeof globalThis.fetch,signal?:AbortSignal):AsyncGenerator<RueEvent>{const supplied=typeof token==='function'?await token():token;const response=await requestFetch(url,{headers:supplied?{authorization:`Bearer ${supplied}`}:{},signal});if(!response.ok||!response.body)throw new RueApiError(response.status,await response.text());const reader=response.body.getReader();const decoder=new TextDecoder();let buffer='';try{while(true){const{done,value}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});let end;while((end=buffer.indexOf('\n\n'))>=0){const block=buffer.slice(0,end);buffer=buffer.slice(end+2);const data=block.split('\n').filter((line)=>line.startsWith('data:')).map((line)=>line.slice(5).trim()).join('');if(!data)continue;try{const event=JSON.parse(data) as RueEvent;if(event.type)yield event}catch{}}}}finally{reader.releaseLock()}}
-
-export class RueApiError extends Error { constructor(public readonly status:number,public readonly body:string){super(`Rue API request failed (${status})`);this.name='RueApiError'} }

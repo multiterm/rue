@@ -23,11 +23,17 @@ EXPO_PUBLIC_KEYNAME_API_URL=https://api.keyname.dev
 EXPO_PUBLIC_KEYNAME_CLIENT_ID=
 ```
 
-Browser and Electron surfaces load Keyname `auth.js`; they do not require `VITE_KEYNAME_CLIENT_ID`. Client IDs are public, but client secrets must never be placed in Vite, Expo, or Electron bundles. The immutable `preview` and `production` services set `KEYNAME_REQUIRE_AUDIENCE=true`; `KEYNAME_CLIENT_ID` is therefore mandatory there and is sent to Keyname as the token audience check. The HMR `develop` environment permits audience-free integration while tenant isolation remains enforced.
+Browser and Electron surfaces load Keyname `auth.js`; they do not require `VITE_KEYNAME_CLIENT_ID`. Client IDs are public, but client secrets must never be placed in Vite, Expo, or Electron bundles. The immutable `preview` and `production` services set `KEYNAME_REQUIRE_AUDIENCE=true`; `KEYNAME_CLIENT_ID` is therefore mandatory there and is sent to Keyname as the token audience check. The HMR `development` environment permits audience-free integration while tenant isolation remains enforced.
 
 ## Sandblocks
 
-The v2 contract deploys the API, webapp, docs, and landing site from three reserved branches: `develop` maps to the HMR-enabled `develop` environment, `pre` maps to immutable `preview`, and `prod` maps to immutable `production`. Other branches are ignored. Install the committed deployment and quality hooks once per clone with `pnpm exec rune sandblocks-hooks-install` and inspect them with `pnpm exec rune sandblocks-hooks-status`. Deployments run in the background and write ignored logs under `.sandblocks/logs/`. Set `SANDBLOCKS_SKIP_POST_COMMIT=1` to skip deployment or `RUE_SKIP_QUALITY=1` to bypass a local quality hook explicitly.
+The v2 contract deploys the API, webapp, docs, and landing site from three reserved branches: `develop` maps to the HMR-enabled `development` environment, `pre` maps to immutable `preview`, and `prod` maps to immutable `production`. Other branches are ignored. Install the committed deployment and quality hooks once per clone with `pnpm exec rune sandblocks-hooks-install` and inspect them with `pnpm exec rune sandblocks-hooks-status`. Deployments run in the background and write ignored logs under `.sandblocks/logs/`. Set `SANDBLOCKS_SKIP_POST_COMMIT=1` to skip deployment or `RUE_SKIP_QUALITY=1` to bypass a local quality hook explicitly.
+
+`development` is the sole dev-server/HMR environment; `develop` is only its Git branch. Local state lives in `.sandblocks/sandbox-development.json`.
+
+Preview uses direct sandbox URLs, never promotion aliases. Rue's non-production promotion protections are frozen; only production builds receive promotion URLs. Keep an existing preview until a replacement passes its checks, and never force deletion when workspace retention refuses cleanup. SQLite currently lives on runtime tmpfs: back it up before replacement; this is not durable storage.
+
+The immutable static server explicitly permits Keyname's hosted iframe at `https://api.keyname.dev`; do not broaden `frame-src` to arbitrary origins. The deployed web check verifies the real hosted login form, not successful authenticated sign-in.
 
 GitHub Actions is not part of Rue's build, test, promotion, or deployment lifecycle. Local pre-commit/pre-push gates and Sandblocks pipelines own those checks.
 

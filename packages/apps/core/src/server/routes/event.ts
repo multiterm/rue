@@ -1,56 +1,49 @@
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { getSession } from '../../storage/index.js'
+import type { BusEvent } from '../../bus/bus.js'
 import type { ServerContext } from '../context.js'
 
-/**
- * Server-Sent Events stream of bus events.
- *
- * Hono's streamSSE plays well with the Node adapter. We bridge our Bus to
- * the SSE stream; on disconnect the Bus subscription is torn down.
- *
- * This route is intentionally NOT defined via @hono/zod-openapi because SSE
- * responses don't fit the OpenAPI 3.0 response model cleanly. The OpenAPI
- * spec instead documents it as text/event-stream in a hand-written addition.
- */
+/** Owner-scoped replay and live delivery share a single ordered writer. */
 export function eventRoutes(): Hono<{ Variables: { ctx: ServerContext } }> {
   const app = new Hono<{ Variables: { ctx: ServerContext } }>()
-  app.get('/event', (c) =>
-    streamSSE(c, async (stream) => {
-      const principalSubject = c.get('principal').subject
-      const visible = (event: { payload: unknown }) => {
-        const payload = event.payload as { sessionId?: string;ownerSubject?:string }
-        if(payload.ownerSubject)return payload.ownerSubject===principalSubject
-        return !payload.sessionId || Boolean(getSession(c.var.ctx.db, payload.sessionId, principalSubject))
-      }
-      const write = (event: { id: number; type: string; time: number; payload: unknown }) => stream.writeSSE({
-        id: String(event.id),
-        event: event.type,
-        data: JSON.stringify({ id: event.id, type: event.type, time: event.time, payload: event.payload }),
-      })
-      const lastEventId = Number(c.req.header('last-event-id') ?? 0)
-      if (Number.isSafeInteger(lastEventId) && lastEventId > 0) {
-        for (const event of c.var.ctx.bus.historySince(lastEventId)) if (visible(event)) await write(event)
-      }
-      const unsubscribe = c.var.ctx.bus.subscribe((event) => {
-        if (!visible(event)) return
-        // Fire-and-forget; SSE writes are buffered.
-        void write(event)
-      })
-      // Initial hello event so clients know the stream is alive.
-      await stream.writeSSE({
-        event: 'hello',
-        data: JSON.stringify({ time: Date.now() }),
-      })
-      // Keep the handler alive until the client disconnects.
-      stream.onAbort(() => unsubscribe())
-      // Heartbeat every 25s to keep proxies/middleboxes happy.
-      while (!stream.aborted) {
+  app.get('/event', (c) => streamSSE(c, async (stream) => {
+    const subject = c.get('principal').subject
+    const visible = (event: BusEvent) => {
+      const payload = event.payload as { sessionId?: string; ownerSubject?: string }
+      if (payload.ownerSubject) return payload.ownerSubject === subject
+      return !payload.sessionId || Boolean(getSession(c.var.ctx.db, payload.sessionId, subject))
+    }
+    const cursor = Number(c.req.header('last-event-id') ?? 0)
+    const replay = Number.isSafeInteger(cursor) && cursor > 0 ? c.var.ctx.bus.historySince(cursor) : []
+    let writes = Promise.resolve()
+    let queued = 0
+    let failed = false
+    const send = (event: BusEvent) => {
+      if (!visible(event) || failed) return
+      // Bound per-client buffering. Reconnecting clients reconcile persisted state.
+      if (queued >= 1024) { failed = true; unsubscribe(); void stream.close(); return }
+      queued++
+      writes = writes.then(() => stream.writeSSE({
+        id: String(event.id), event: event.type,
+        data: JSON.stringify(event),
+      })).finally(() => { queued-- })
+      void writes.catch(() => { failed = true; unsubscribe(); void stream.close() })
+    }
+    // No await between taking the replay snapshot and subscribing: live events
+    // cannot fall into the old replay/subscription gap.
+    const unsubscribe = c.var.ctx.bus.subscribe(send)
+    stream.onAbort(unsubscribe)
+    try {
+      for (const event of replay) send(event)
+      await writes
+      await stream.writeSSE({ event: 'hello', data: JSON.stringify({ time: Date.now() }) })
+      while (!stream.aborted && !failed) {
         await stream.sleep(25_000)
-        if (stream.aborted) break
+        if (stream.aborted || failed) break
         await stream.writeSSE({ event: 'ping', data: String(Date.now()) })
       }
-    }),
-  )
+    } finally { unsubscribe() }
+  }))
   return app
 }
