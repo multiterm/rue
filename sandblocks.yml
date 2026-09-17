@@ -65,6 +65,7 @@ checks:
     profile: smoke
     inputs: [packages/apps/core, packages/libs/db, packages/libs/trpc, quality]
     timeout: 2m
+    resources: { memory: 1g, cpus: "2" }
   webapp-browser:
     image: ./docker/images/Dockerfile.sandblocks-e2e
     command: [npx, playwright, test, webapp.app.playwright.ts, --config, quality/playwright.config.ts]
@@ -72,6 +73,7 @@ checks:
     profile: smoke
     inputs: [packages/apps/webapp, packages/libs/auth, packages/libs/config, packages/libs/sdk, packages/libs/ui, quality]
     timeout: 2m
+    resources: { memory: 1g, cpus: "2" }
   site-browser:
     image: ./docker/images/Dockerfile.sandblocks-e2e
     command: [npx, playwright, test, site.app.playwright.ts, --config, quality/playwright.config.ts]
@@ -79,6 +81,7 @@ checks:
     profile: smoke
     inputs: [packages/apps/site, packages/libs/config, packages/libs/ui, quality]
     timeout: 2m
+    resources: { memory: 1g, cpus: "2" }
   docs-browser:
     image: ./docker/images/Dockerfile.sandblocks-e2e
     command: [npx, playwright, test, docs.app.playwright.ts, --config, quality/playwright.config.ts]
@@ -86,6 +89,7 @@ checks:
     profile: smoke
     inputs: [packages/apps/docs, packages/libs/config, packages/libs/ui, quality]
     timeout: 2m
+    resources: { memory: 1g, cpus: "2" }
 
 environments:
   development:

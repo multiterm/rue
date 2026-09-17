@@ -1,4 +1,5 @@
 .sandblocks/
+.worktrees/
 .runway/
 node_modules/
 dist/
