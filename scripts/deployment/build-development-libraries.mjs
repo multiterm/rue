@@ -34,9 +34,17 @@ export async function buildDevelopmentLibraries(root, apiUrl) {
   const body = developmentBuildPayload(state)
   const attempt = randomUUID()
   async function request(path, init = {}) {
-    const response = await fetch(new URL(path, base), { ...init, headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json', ...init.headers }, signal: AbortSignal.timeout(30_000), redirect: 'error' })
-    if (!response.ok) throw new Error(`Native development operation returned HTTP ${response.status}`)
-    try { return await response.json() } catch { throw new Error('Native development operation returned invalid JSON') }
+    // GET polling is safe to retry; submission uses the same idempotency key.
+    for (let retry = 0; retry < 4; retry++) {
+      let response
+      try { response = await fetch(new URL(path, base), { ...init, headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json', ...init.headers }, signal: AbortSignal.timeout(30_000), redirect: 'error' }) }
+      catch { if (retry === 3) throw new Error('Native development operation transport failed') }
+      if (response?.ok) { try { return await response.json() } catch { throw new Error('Native development operation returned invalid JSON') } }
+      if (response && ![429,502,503,504].includes(response.status)) throw new Error(`Native development operation returned HTTP ${response.status}`)
+      await response?.body?.cancel()
+      if (retry < 3) await new Promise(resolve => setTimeout(resolve, 1000 * 2 ** retry))
+    }
+    throw new Error('Native development operation remained unavailable after retries')
   }
   const submitted = await request(`/v1/projects/${encodeURIComponent(state.projectId)}/operations`, { method: 'POST', headers: { 'idempotency-key': `rue:development-build:${state.sandboxId}:${attempt}` }, body: JSON.stringify(body) })
   const id = submitted.operation?.id
