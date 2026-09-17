@@ -31,7 +31,9 @@ The v2 contract deploys the API, webapp, docs, and landing site from three reser
 
 `development` is the sole dev-server/HMR environment; `develop` is only its Git branch. Local state lives in `.sandblocks/sandbox-development.json`.
 
-Preview uses direct sandbox URLs, never promotion aliases. Rue's non-production promotion protections are frozen; only production builds receive promotion URLs. Keep an existing preview until a replacement passes its checks, and never force deletion when workspace retention refuses cleanup. SQLite currently lives on runtime tmpfs: back it up before replacement; this is not durable storage.
+Preview uses direct sandbox URLs, never promotion aliases. Rue's non-production promotion protections are frozen; only production builds receive promotion URLs. Keep an existing preview until a replacement passes its checks, and never force deletion when workspace retention refuses cleanup. The accepted environments mount private SQLite data and independent encryption keys from `/vol/nvme/docker/rue/<environment>/data` on Abby. These mounts are operator-managed: full API-container replacement must reattach the matching data directory and key before acceptance or promotion. Keep consistent backups; see [development synchronization and storage](development-sync.md).
+
+Immutable frontends load allowlisted public service URLs from the uncached `/public-config.js` endpoint before application modules. This allows the same verified image to serve different candidates; promoted production hosts select stable sibling URLs, and login always uses the current browser origin. No server secrets are serialized.
 
 The immutable static server explicitly permits Keyname's hosted iframe at `https://api.keyname.dev`; do not broaden `frame-src` to arbitrary origins. The deployed web check verifies the real hosted login form, not successful authenticated sign-in.
 
