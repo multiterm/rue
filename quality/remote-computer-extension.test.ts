@@ -6,7 +6,7 @@ vi.mock('../extensions/rue/bridge.mjs', () => ({
   beginPairing: async () => ({ requestId: 'a'.repeat(32), verifier: 'v'.repeat(43) }),
   client: () => mocks.network,
   Bridge: class {
-    running: string | undefined; stopped = false; message = vi.fn(); settled = vi.fn()
+    running: string | undefined; abort = new AbortController(); stopped = false; message = vi.fn(); settled = vi.fn()
     constructor(public state: any, _store: any, public adapter: any) { mocks.bridges.push(this) }
     async start() {}
     stop() { if (this.stopped) return; this.stopped = true; if (this.running) this.adapter.cancel() }
@@ -35,6 +35,54 @@ test('extension is inert until explicit pairing; approved remote text never disp
   expect(ctx.abort).toHaveBeenCalledOnce(); expect(mocks.release).toHaveBeenCalledOnce()
   expect(() => b.adapter.send('stale remote callback')).toThrow('Session changed')
   expect(pi.sendUserMessage).toHaveBeenCalledTimes(1)
+})
+test('trust is explicit, session-only, reversible, and does not persist', async () => {
+  const { ctx, commands, events } = fixture()
+  await commands.rue.handler('', ctx)
+  const b = mocks.bridges[0], signal = b.abort.signal
+  ctx.ui.confirm.mockClear()
+  await b.adapter.confirm('first', signal)
+  expect(ctx.ui.confirm).toHaveBeenCalledOnce()
+  await commands.rue.handler('trust', ctx)
+  ctx.ui.confirm.mockClear()
+  expect(await b.adapter.confirm('second', signal)).toBe(true)
+  expect(await b.adapter.confirm('third', signal)).toBe(true)
+  expect(ctx.ui.confirm).not.toHaveBeenCalled()
+  expect(JSON.stringify(mocks.save.mock.calls)).not.toContain('trusted')
+  await commands.rue.handler('untrust', ctx)
+  await b.adapter.confirm('fourth', signal)
+  expect(ctx.ui.confirm).toHaveBeenCalledOnce()
+  await commands.rue.handler('trust', ctx)
+  events.session_shutdown()
+  expect(await b.adapter.confirm('stale', signal)).toBe(false)
+  mocks.load.mockReturnValue(b.state); ctx.ui.input.mockResolvedValue('https://api.test')
+  await commands.rue.handler('resume', ctx)
+  ctx.ui.confirm.mockClear()
+  await mocks.bridges.at(-1).adapter.confirm('after resume', new AbortController().signal)
+  expect(ctx.ui.confirm).toHaveBeenCalledOnce()
+})
+test('denied trust and approval completing after shutdown never grant trust', async () => {
+  const { ctx, commands, events } = fixture()
+  await commands.rue.handler('', ctx)
+  ctx.ui.confirm.mockResolvedValueOnce(false)
+  await commands.rue.handler('trust', ctx)
+  ctx.ui.confirm.mockClear()
+  await mocks.bridges[0].adapter.confirm('still asks', new AbortController().signal)
+  expect(ctx.ui.confirm).toHaveBeenCalledOnce()
+  let resolve!: (approved: boolean) => void
+  ctx.ui.confirm.mockImplementationOnce(() => new Promise<boolean>(r => { resolve = r }))
+  const pending = commands.rue.handler('trust', ctx)
+  events.session_shutdown(); resolve(true); await pending
+  expect(await mocks.bridges[0].adapter.confirm('stale', new AbortController().signal)).toBe(false)
+})
+test('explicitly replacing an expired saved link revokes or tolerates expiry before pairing', async () => {
+  const { ctx, commands } = fixture()
+  mocks.load.mockReturnValue({ id: 'old-link', token: 'expired-token', origin: 'https://api.test', piSessionId: 'session-a' })
+  mocks.network.mockRejectedValueOnce(Object.assign(new Error('expired'), { status: 401 }))
+  await commands.rue.handler('', ctx)
+  expect(ctx.ui.confirm.mock.calls[0]?.[0]).toBe('Replace the saved Rue link?')
+  expect(mocks.network.mock.calls[0]).toEqual(['/connections/old-link', undefined, expect.any(AbortSignal), 'DELETE'])
+  expect(mocks.bridges).toHaveLength(1)
 })
 test('shutdown without a remote run does not abort local work; no UI means no pairing', async () => {
   const first = fixture()

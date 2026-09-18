@@ -7,10 +7,15 @@ export default function rueExtension(pi: ExtensionAPI) {
   let bridge: Bridge | undefined
   let release: (() => void) | undefined
   let pairing = false
+  // Deliberately never persisted or accepted from the dashboard.
+  let trusted = false
+  let trustRevision = 0
+  let choosingTrust = false
   let generation = 0
   let injectedText: string | undefined
   let lifetime = new AbortController()
   const stop = () => {
+    trusted = false; trustRevision++; choosingTrust = false
     bridge?.stop(); bridge = undefined
     generation++; injectedText = undefined; lifetime.abort(); lifetime = new AbortController()
     release?.(); release = undefined; pairing = false
@@ -26,11 +31,29 @@ export default function rueExtension(pi: ExtensionAPI) {
   pi.on('message_end', event => { bridge?.message(event.message) })
   pi.on('agent_settled', () => { bridge?.settled() })
   pi.registerCommand('rue', {
-    description: 'Pair this Pi session with Rue; /rue resume, status, or disconnect. Keys stay local.',
+    description: 'Pair with Rue; resume, status, trust, untrust, or disconnect. Trust lasts only for this connection/session.',
     handler: async (args, ctx) => {
       if (!ctx.hasUI) return
-      if (!['', 'resume', 'disconnect', 'status'].includes(args.trim())) { ctx.ui.notify('Use /rue, /rue resume, /rue status, or /rue disconnect. Never put codes in command arguments.', 'warning'); return }
-      if (args.trim() === 'status') { ctx.ui.notify(bridge && !bridge.stopped ? 'Rue linked; provider credentials remain local.' : 'Rue is disconnected.', 'info'); return }
+      if (!['', 'resume', 'disconnect', 'status', 'trust', 'untrust'].includes(args.trim())) { ctx.ui.notify('Use /rue, /rue resume, /rue status, /rue trust, /rue untrust, or /rue disconnect. Never put codes in command arguments.', 'warning'); return }
+      if (args.trim() === 'status') { ctx.ui.notify(bridge && !bridge.stopped ? `Rue linked; ${trusted ? 'trusted for this session' : 'approval required per prompt'}; provider credentials remain local.` : 'Rue is disconnected.', 'info'); return }
+      if (args.trim() === 'untrust') {
+        trusted = false; trustRevision++
+        ctx.ui.notify('Per-prompt approval restored. An already approved/running turn is not cancelled; use /rue disconnect to stop it.', 'info'); return
+      }
+      if (args.trim() === 'trust') {
+        const current = bridge, epoch = generation, revision = ++trustRevision
+        if (!current || current.stopped || pairing) { ctx.ui.notify('Link or resume Rue first.', 'warning'); return }
+        if (choosingTrust || current.approving) { ctx.ui.notify('Finish the open approval dialog, then run /rue trust.', 'warning'); return }
+        choosingTrust = true
+        try {
+          const approved = await ctx.ui.confirm('Trust this Rue connection for this Pi session?', `Allow future prompts from account ${current.state.ownerSubject} at ${current.state.origin} for bot ${current.state.sessionId} without per-message approval? They can use your current local model and tools. Existing tool permission checks remain in force. Trust resets on disconnect, reload, restart, or session change. Use /rue untrust to restore prompts.`, { signal: current.abort.signal })
+          if (approved && bridge === current && !current.stopped && generation === epoch && revision === trustRevision) {
+            trusted = true
+            ctx.ui.notify('Rue trusted for this connection/session only. Use /rue untrust to require approval again.', 'info')
+          }
+        } finally { if (bridge === current && generation === epoch) choosingTrust = false }
+        return
+      }
       if (args.trim() === 'disconnect') {
         const state = bridge?.state
         stop()
@@ -49,14 +72,21 @@ export default function rueExtension(pi: ExtensionAPI) {
         if (!originInput || !valid(ctx, sessionId, epoch)) return
         const origin = httpsOrigin(originInput), store = privateStore(origin, sessionId)
         release = store.acquire()
-        let state = args.trim() === 'resume' ? store.load() : undefined
+        const saved = store.load()
+        let state = args.trim() === 'resume' ? saved : undefined
         if (!state) {
           if (args.trim() === 'resume') throw Error('No saved connection')
-          if (store.load()) { ctx.ui.notify('This session already has a saved link. Use /rue resume, then disconnect/revoke it before pairing again.', 'warning'); return }
+          if (saved) {
+            if (!await ctx.ui.confirm('Replace the saved Rue link?', 'Use /rue resume to keep a valid link. Replacing revokes the old credential and requires pairing again. The same account keeps its existing bot and history; session trust resets.', { signal }) || !valid(ctx, sessionId, epoch)) return
+            try { await client(origin, saved.token)(`/connections/${encodeURIComponent(saved.id)}`, undefined, signal, 'DELETE') }
+            catch (error) { if ((error as { status?: number }).status !== 401) throw error }
+            if (!valid(ctx, sessionId, epoch)) return
+            store.remove()
+          }
           const webInput = await ctx.ui.input('Rue dashboard HTTPS origin', 'https://3668e4ec-b31185d9.sandblocks.dev', { signal })
           if (!webInput || !valid(ctx, sessionId, epoch)) return
           const webOrigin = httpsOrigin(webInput)
-          if (!await ctx.ui.confirm('Link this computer?', `New user and assistant TEXT will sync to ${webOrigin}. Prior history, tool results, reasoning, and provider credentials are not uploaded. Remote prompts require local approval and use your current model and tool permissions.`, { signal })) return
+          if (!await ctx.ui.confirm('Link this computer?', `New user and assistant TEXT will sync to ${webOrigin}. Prior history, tool results, reasoning, and provider credentials are not uploaded. Remote prompts require local approval unless you explicitly enable session-only trust with /rue trust, and use your current model and tool permissions.`, { signal })) return
           if (!valid(ctx, sessionId, epoch)) return
           const pending = await beginPairing(origin, sessionId)
           if (!valid(ctx, sessionId, epoch)) return
@@ -76,15 +106,19 @@ export default function rueExtension(pi: ExtensionAPI) {
         }
         if (!valid(ctx, sessionId, epoch)) return
         const adapter = {
-          idle: () => valid(ctx, sessionId, epoch) && ctx.isIdle() && !ctx.hasPendingMessages(),
-          confirm: (text: string, abort: AbortSignal) => ctx.ui.confirm('Approve remote Rue prompt?', text.replace(/[\x00-\x08\x0b-\x1f\x7f\u202a-\u202e\u2066-\u2069]/g, '').slice(0, 100000), { signal: abort }),
+          idle: () => !choosingTrust && valid(ctx, sessionId, epoch) && ctx.isIdle() && !ctx.hasPendingMessages(),
+          confirm: async (text: string, abort: AbortSignal) => {
+            if (!valid(ctx, sessionId, epoch) || abort.aborted || !bridge || bridge.stopped) return false
+            if (trusted) return true
+            return ctx.ui.confirm('Approve remote Rue prompt? (Use /rue trust for session-only approval)', text.replace(/[\x00-\x08\x0b-\x1f\x7f\u202a-\u202e\u2066-\u2069]/g, '').slice(0, 100000), { signal: abort })
+          },
           send: (text: string) => { if (!valid(ctx, sessionId, epoch)) throw Error('Session changed'); injectedText = text; pi.sendUserMessage(text, { expandPromptTemplates: false }) },
           cancel: () => { if (valid(ctx, sessionId, epoch)) ctx.abort() },
           notify: (message: string) => { if (valid(ctx, sessionId, epoch)) ctx.ui.notify(message, 'info') },
         }
         bridge = new Bridge(state, store, adapter)
         await bridge.start()
-        if (valid(ctx, sessionId, epoch) && !bridge.stopped) ctx.ui.notify('Rue linked. Enable remote prompts in Settings → Remote computers. Provider keys remain on this computer.', 'info')
+        if (valid(ctx, sessionId, epoch) && !bridge.stopped) ctx.ui.notify('Rue linked. Enable remote prompts in Settings → Remote computers. Use /rue trust to approve this connection for this session instead of each message. Provider keys remain on this computer.', 'info')
       } catch { if (valid(ctx, sessionId, epoch)) { ctx.ui.notify('Rue linking failed. Check the HTTPS origins, request/code, account, and private state directory. No provider credentials were sent.', 'error'); bridge?.stop(); bridge = undefined } }
       finally { if (valid(ctx, sessionId, epoch)) { pairing = false; if (!bridge || bridge.stopped) { release?.(); release = undefined } } }
     },

@@ -25,6 +25,7 @@ const SessionSchema = z
     scopes: z.array(z.string()),
     parentId: z.string().nullable(),
     ownerSubject: z.string(),
+    terminalConnectionId: z.string().nullable().optional(),
     createdAt: z.number(),
     updatedAt: z.number(),
     meta: z.record(z.string(), z.unknown()),

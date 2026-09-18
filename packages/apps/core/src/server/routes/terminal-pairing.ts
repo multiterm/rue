@@ -29,7 +29,7 @@ function protectedRoutes() {
   app.onError((error, c) => {
     if (error instanceof RelayError) return c.json({ error: error.code }, 409)
     if (!(error instanceof TerminalPairingError)) return c.json({ error: 'terminal_pairing_unavailable' }, 503)
-    const status = error.code === 'invalid_terminal_credential' ? 401 : error.code === 'already_approved' ? 409 : error.code === 'pairing_unavailable' ? 429 : 400
+    const status = error.code === 'invalid_terminal_credential' ? 401 : ['already_approved', 'already_linked'].includes(error.code) ? 409 : error.code === 'pairing_unavailable' ? 429 : 400
     return c.json({ error: error.code }, status)
   })
   return app

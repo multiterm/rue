@@ -27,7 +27,7 @@ export function ComputerApproval({ owner, initialRequest = '' }: { owner: string
     {error && <p role="alert">{error}</p>}
   </section>
 }
-function Computer({ computer, owner, changed }: { computer: RueRemoteComputer; owner: string; changed(): void }) {
+function Computer({ computer, owner, botName, changed }: { computer: RueRemoteComputer; owner: string; botName?: string; changed(): void }) {
   const [name, setName] = useState(computer.name), [error, setError] = useState(''), [busy, setBusy] = useState(false)
   async function update(revoke = false, enabled = computer.remoteEnabled) {
     setBusy(true); setError('')
@@ -41,7 +41,8 @@ function Computer({ computer, owner, changed }: { computer: RueRemoteComputer; o
   const disconnected = ['expired', 'revoked'].includes(computer.status)
   return <article className="space-y-3 border rounded p-3">
     <Input label="Name" value={name} onChange={e => setName(e.target.value)} maxLength={60} disabled={disconnected} show={{ label: true, hideRequireType: true }}/>
-    <p>Status: {computer.status}. Remote prompts: {computer.remoteEnabled ? 'enabled, local approval required' : 'disabled'}.</p>
+    <p>Linked bot: <strong>{botName ?? 'Loading bot…'}</strong> · <code>{computer.sessionId}</code>. One bot per remote Pi session.</p>
+    <p>Status: {computer.status}. Remote prompts: {computer.remoteEnabled ? 'enabled, approval policy controlled in Pi' : 'disabled'}.</p>
     <p>Expires {new Date(computer.expiresAt).toLocaleString()}. Provider and model are selected in Pi on the computer.</p>
     <Button disabled={busy || disconnected || !name.trim()} onClick={() => void update()}>Save computer name</Button>{' '}
     <Button disabled={busy || disconnected || !name.trim()} onClick={() => void update(false, !computer.remoteEnabled)}>{computer.remoteEnabled ? 'Disable remote prompts' : 'Enable remote prompts'}</Button>{' '}
@@ -53,12 +54,14 @@ function Computer({ computer, owner, changed }: { computer: RueRemoteComputer; o
 export function RemoteComputersPanel({ owner }: { owner: string }) {
   const cache = useQueryClient()
   const computers = useQuery({ queryKey: ['remote-computers', owner], queryFn: () => rue.remoteComputers(), retry: false, refetchInterval: 5000 })
+  const sessions = useQuery({ queryKey: ['sessions'], queryFn: () => rue.sessions(), retry: false })
   const valid = computers.data?.computers.every(c => c.ownerSubject === owner)
   return <div className="space-y-6">
-    <p>Credentials stay on each computer. Every dashboard prompt needs approval in its local Pi session. Nothing can silently switch to cloud execution.</p>
+    <p>Cloud bots run on Rue’s server; paired bots run in one specific Pi session. Credentials stay on that computer, and a remote bot never falls back to cloud execution.</p>
+    <p>Pi asks per prompt by default. Run <code>/rue trust</code> locally to approve this connection for the current session, or <code>/rue untrust</code> to restore per-prompt approval. Existing tool permissions still apply; trust is not saved across reconnects or restarts.</p>
     <ComputerApproval key={owner} owner={owner}/>
     <h4>Paired computers</h4>
-    {computers.isPending ? <p role="status">Loading computers…</p> : !valid ? <p role="alert">Remote computers are unavailable in this environment or account.</p> : computers.data!.computers.map(c => <Computer key={c.id} computer={c} owner={owner} changed={() => { void cache.invalidateQueries({ queryKey: ['remote-computers', owner] }); void cache.invalidateQueries({ queryKey: ['sessions'] }) }}/>) }
+    {computers.isPending ? <p role="status">Loading computers…</p> : !valid ? <p role="alert">Remote computers are unavailable in this environment or account.</p> : computers.data!.computers.map(c => <Computer key={c.id} computer={c} owner={owner} botName={sessions.data?.find(s => s.id === c.sessionId && s.ownerSubject === owner)?.title} changed={() => { void cache.invalidateQueries({ queryKey: ['remote-computers', owner] }); void cache.invalidateQueries({ queryKey: ['sessions'] }) }}/>) }
     {valid && !computers.data!.computers.length && <p>No computers paired yet.</p>}
   </div>
 }

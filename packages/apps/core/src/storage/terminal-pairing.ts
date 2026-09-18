@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto
 import { z } from 'zod'
 import type { Database } from 'better-sqlite3'
 import { createSession } from './sessions.js'
+import { updatePart } from './messages.js'
 
 const PAIR_TTL = 5 * 60_000
 const TOKEN_TTL = 7 * 24 * 60 * 60_000
@@ -16,7 +17,7 @@ const sessionSchema = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
 const nameSchema = z.string().trim().min(1).max(60).regex(/^[^\x00-\x1f\x7f]*$/)
 
 export class TerminalPairingError extends Error {
-  constructor(readonly code: 'invalid_request' | 'pairing_unavailable' | 'already_approved' | 'invalid_pairing' | 'invalid_terminal_credential') { super(code) }
+  constructor(readonly code: 'invalid_request' | 'pairing_unavailable' | 'already_approved' | 'already_linked' | 'invalid_pairing' | 'invalid_terminal_credential') { super(code) }
 }
 interface PairingRow {
   id: string; verifier_hash: string; pi_session_id: string; expires_at: number
@@ -84,12 +85,27 @@ export function exchangeTerminalPairing(db: Database, requestId: string, verifie
       db.prepare('UPDATE terminal_pairing_requests SET attempts=attempts+1 WHERE id=?').run(requestId)
       return undefined
     }
-    const id = `term_${opaqueId()}`, sessionId = `ses_${opaqueId()}`
+    // Account-scoped to avoid cross-tenant session-ID reservation/disclosure.
+    // The unique index and immediate transaction also fence concurrent exchanges.
+    const existing = db.prepare('SELECT * FROM terminal_connections WHERE owner_subject=? AND pi_session_id=?').get(row.owner_subject, row.pi_session_id) as ConnectionRow | undefined
+    if (existing && existing.revoked_at === null && existing.expires_at > now) throw new TerminalPairingError('already_linked')
+    const id = existing?.id ?? `term_${opaqueId()}`, sessionId = existing?.session_id ?? `ses_${opaqueId()}`
     const token = `rue_terminal_${randomBytes(32).toString('base64url')}`
     const expiresAt = now + TOKEN_TTL
-    createSession(db, { id: sessionId, ownerSubject: row.owner_subject, title: row.bot_name, agent: 'pi-terminal', meta: { terminalConnectionId: id } })
-    db.prepare('INSERT INTO terminal_connections(id,owner_subject,session_id,pi_session_id,token_hash,expires_at,created_at,name) VALUES(?,?,?,?,?,?,?,?)')
-      .run(id, row.owner_subject, sessionId, row.pi_session_id, hash(token), expiresAt, now, row.bot_name)
+    if (existing) {
+      // Renew a revoked/expired link without creating another bot or losing history.
+      const unfinished = db.prepare("SELECT id,assistant_message_id,result FROM terminal_commands WHERE connection_id=? AND status IN ('queued','claimed','running')").all(id) as { id: string; assistant_message_id: string; result: string }[]
+      for (const command of unfinished) {
+        db.prepare("UPDATE terminal_commands SET status='cancelled',updated_at=? WHERE id=?").run(now, command.id)
+        updatePart(db, `txt_${command.assistant_message_id}`, { text: command.result || '[Remote run cancelled]', remoteStatus: 'cancelled' })
+      }
+      db.prepare('UPDATE terminal_connections SET token_hash=?,expires_at=?,activated_at=NULL,revoked_at=NULL,remote_enabled=0,instance_id=NULL,last_seen_at=NULL,settings_revision=settings_revision+1,name=? WHERE id=?')
+        .run(hash(token), expiresAt, row.bot_name, id)
+    } else {
+      createSession(db, { id: sessionId, ownerSubject: row.owner_subject, title: row.bot_name, agent: 'pi-terminal', meta: { terminalConnectionId: id } })
+      db.prepare('INSERT INTO terminal_connections(id,owner_subject,session_id,pi_session_id,token_hash,expires_at,created_at,name) VALUES(?,?,?,?,?,?,?,?)')
+        .run(id, row.owner_subject, sessionId, row.pi_session_id, hash(token), expiresAt, now, row.bot_name)
+    }
     db.prepare('UPDATE terminal_pairing_requests SET consumed_at=?,code_hash=NULL WHERE id=?').run(now, requestId)
     return { id, ownerSubject: row.owner_subject, sessionId, piSessionId: row.pi_session_id, token, expiresAt }
   }).immediate()

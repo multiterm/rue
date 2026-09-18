@@ -220,4 +220,9 @@ export const MIGRATIONS: ReadonlyArray<{ id: number; name: string; sql: string }
       );
     `,
   },
+  {
+    id: 7,
+    name: 'one_bot_per_remote_session',
+    sql: `CREATE UNIQUE INDEX terminal_session_owner ON terminal_connections(owner_subject, pi_session_id);`,
+  },
 ]

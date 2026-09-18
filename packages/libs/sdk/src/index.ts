@@ -11,7 +11,7 @@ export interface RueTerminalConnection { id:string; ownerSubject:string; session
 export interface RueRemoteComputer { id:string; ownerSubject:string; sessionId:string; name:string; revision:number; remoteEnabled:boolean; lastSeenAt:number|null; expiresAt:number; status:string; runs:Array<{id:string;status:string;created_at:number;updated_at:number}> }
 export interface RueTerminalApproval { code:string; expiresAt:number; ownerSubject:string }
 export interface RueHealth { ok:boolean; version:string }
-export interface RueSession { id:string; title:string; agent:string|null; provider:string|null; model:string|null; directory:string|null; scopes:string[]; parentId:string|null; ownerSubject:string; createdAt:number; updatedAt:number; meta:Record<string,unknown> }
+export interface RueSession { terminalConnectionId?:string|null; id:string; title:string; agent:string|null; provider:string|null; model:string|null; directory:string|null; scopes:string[]; parentId:string|null; ownerSubject:string; createdAt:number; updatedAt:number; meta:Record<string,unknown> }
 export interface RueMessage { id:string; sessionId:string; role:'user'|'assistant'|'system'; time:number; provider:string|null; model:string|null; agent:string|null; meta:Record<string,unknown>; seq:number }
 export interface RuePart { id:string; sessionId:string; messageId:string; type:string; seq:number; payload:Record<string,unknown> }
 export interface CreateSessionInput { title?:string; agent?:string; provider?:string; model?:string; directory?:string; scopes?:string[]; parentId?:string; meta?:Record<string,unknown> }

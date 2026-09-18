@@ -218,7 +218,29 @@ test('remote prompt retry retains its command ID after an ambiguous network fail
   await expect(page.getByRole('alert')).toContainText('Your draft has been kept')
   await expect(composer).toHaveValue('Run on my computer')
   await page.getByRole('button', { name: 'Send message' }).click()
-  await expect(page.getByText('Sent to computer. Awaiting local approval / reply.')).toBeVisible()
+  await expect(page.getByText('Sent to computer. Awaiting reply (local approval unless this Pi session is trusted).')).toBeVisible()
   expect(requests).toHaveLength(2); expect(requests[0].requestId).toBeTruthy(); expect(requests[1].requestId).toBe(requests[0].requestId)
+})
+test('mixed bots show cloud versus paired computer, including offline and revoked links', async ({ page }) => {
+  const base = { provider: null, model: null, directory: null, scopes: [], parentId: null, ownerSubject: 'usr_test', createdAt: 1, updatedAt: 1, meta: {} }
+  await page.route('http://localhost:4097/session', r => r.fulfill({ json: [
+    { ...base, id: 'cloud', title: 'Cloud helper', agent: null, terminalConnectionId: null },
+    { ...base, id: 'remote', title: 'Remote helper', agent: 'pi', terminalConnectionId: 'term_one' },
+  ] }))
+  const computer = { id: 'term_one', sessionId: 'remote', ownerSubject: 'usr_test', name: 'Work laptop', remoteEnabled: false, status: 'offline', revision: 0, expiresAt: Date.now() + 60000, runs: [] }
+  await page.route('http://localhost:4097/terminal/computers', r => r.fulfill({ json: { computers: [computer] } }))
+  await page.goto('/login'); await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+  const nav = page.getByRole('navigation', { name: 'Sessions' })
+  await expect(nav.getByRole('button', { name: /Cloud helper/ })).toContainText('Cloud · Rue server')
+  await expect(nav.getByRole('button', { name: /Remote helper/ })).toContainText('Remote · Work laptop · offline · prompts disabled')
+  await nav.getByRole('button', { name: /Remote helper/ }).click()
+  await expect(page.locator('.conversation-header')).toContainText('Remote · Work laptop · offline')
+  await expect(page).toHaveScreenshot('rue-mixed-bot-locations.png', { animations: 'disabled', fullPage: true })
+  computer.status = 'revoked'
+  await expect(page.locator('.conversation-header')).toContainText('Remote · Work laptop · revoked', { timeout: 10000 })
+  await expect(page.locator('.conversation-header')).not.toContainText('Cloud · Rue server')
+  if (test.info().project.name === 'mobile') await page.getByRole('button', { name: '‹ Bots' }).click()
+  await nav.getByRole('button', { name: /Cloud helper/ }).click()
+  await expect(page.locator('.conversation-header')).toContainText('Cloud · Rue server')
 })
 declare global{interface Window{__keynameMode?:string}}

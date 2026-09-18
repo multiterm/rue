@@ -3,8 +3,20 @@
 Rue can relay prompts and new text messages to an explicitly paired Pi session on
 a local or remote computer. The connection is outbound HTTPS: no inbound ports,
 SSH keys, provider credentials, or executable host commands belong in Rue settings.
-Each link is scoped to **one account, one bot, and one Pi session**. Pair additional
-Pi sessions separately, even when they run on the same physical computer.
+Each link is scoped to **one account, one bot, and one Pi session**. A database
+constraint enforces one bot per Pi session within an account. Re-pairing an active
+session is rejected; use `/rue resume`. Renewing a revoked/expired link reuses its
+bot/history, rotates its credential, cancels old unfinished commands, and resets
+remote prompting to disabled. If a saved link has expired or been revoked, run
+`/rue` and explicitly confirm replacing the saved link before pairing again. Pair additional Pi sessions separately, even on the
+same physical computer.
+
+Cloud and remote bots coexist: **Add new bot** creates a cloud bot using server
+Agent settings. Pairing creates a remote bot (it does not convert a cloud bot).
+The bot list and conversation header label **Cloud · Rue server** or
+**Remote · computer name · connection status**. Remote-computer settings show the
+linked bot and its ID. Agent location is separate from where its model provider
+runs; a remote Pi session may still call a cloud model provider.
 
 ## Link a computer
 
@@ -26,15 +38,22 @@ Pi sessions separately, even when they run on the same physical computer.
    explicitly confirm it. Pairing expires after five minutes.
 6. Open Rue **Settings → Remote computers**. Enable remote prompts for the link.
    Select its new bot in the dashboard and send a prompt. Pi asks for approval
-   before each remote prompt; the existing model, tools and approval extensions
-   remain authoritative. No remote slash-command/template expansion is allowed.
+   before each remote prompt by default; the existing model, tools and approval
+   extensions remain authoritative. No remote slash-command/template expansion is allowed.
 
 Local user/assistant text after linking is mirrored. Tool results/arguments,
 reasoning, system messages, provider credentials and pre-existing session history
 are not read/uploaded by the extension. New assistant text can still refer to its
 local context: review what you choose to share and which remote prompts you approve.
 Remote turns block competing local input rather than interrupting local work.
-Headless/unattended approval is deliberately not implemented.
+For session-only approval, run **`/rue trust`** in the linked Pi session and confirm
+the account, API origin, and bot shown. Future remote messages on that connection
+run without per-message confirmation, while tool permission checks remain intact.
+Trust exists only in memory, is never granted by the dashboard, and resets on
+disconnect, reconnect, reload, restart, or session change. **`/rue untrust`** restores
+per-message approval for future turns; `/rue disconnect` also stops an active remote
+turn. `/rue status` shows the current policy. Initial linking/trust still requires
+an interactive approval; headless auto-approval is not supported.
 
 ## Controls and recovery
 
@@ -66,7 +85,10 @@ The bridge is enabled by server startup only for `SANDBLOCKS_RUNTIME=development
 (the existing development container's legacy `develop` tag is also recognized)
 or an explicit `RUE_TERMINAL_BRIDGE=true`, and always requires Keyname auth.
 Preview and production are not changed by development sync. Preserve the API's
-private database mount and matching encryption key; migration 6 adds relay state.
+private database mount and matching encryption key; migration 6 adds relay state
+and migration 7 adds session uniqueness. Existing duplicate account/session
+bindings must be resolved explicitly before migration 7; migration fails rather
+than silently deleting bots or conversation history.
 
 Tests cover real HTTP prompt delivery, persisted replies, SSE notification,
 lost-ack retry, owner/credential isolation, revocation, interrupted dispatch,
