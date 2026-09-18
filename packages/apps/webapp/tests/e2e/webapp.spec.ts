@@ -171,4 +171,54 @@ test('agent settings save account defaults and never refill or locally persist t
   await expect(page.getByRole('dialog')).toHaveCount(0)
   expect(submitted[2]?.apiKey).toBeNull()
 })
+test('remote computer pairing survives sign-in and approval requires an explicit click', async ({ page }) => {
+  const approvals: unknown[] = []
+  await page.route('http://localhost:4097/terminal/requests/*/approve', route => { approvals.push(route.request().postDataJSON()); return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ownerSubject: 'usr_test', code: '123456789012', expiresAt: Date.now() + 300000 }) }) })
+  await page.goto('/link-computer?request=' + 'a'.repeat(32))
+  await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+  await expect(page.getByLabel('Computer request ID')).toHaveValue('a'.repeat(32))
+  expect(approvals).toEqual([])
+  await page.getByLabel('Computer name').fill('Work laptop')
+  await page.getByRole('button', { name: 'Approve computer' }).click()
+  await expect(page.getByLabel('Computer pairing code')).toHaveText('123456789012')
+  expect(approvals).toEqual([{ expectedOwnerSubject: 'usr_test', botName: 'Work laptop' }])
+  expect(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }))).not.toContain('123456789012')
+})
+test('remote computer settings show offline state and explicitly enable or revoke prompting', async ({ page }) => {
+  const computer = { id: 'term_' + 'a'.repeat(32), ownerSubject: 'usr_test', sessionId: 'ses_host', name: 'Laptop', revision: 0, remoteEnabled: false, lastSeenAt: null, expiresAt: Date.now() + 86400000, status: 'offline', runs: [{ id: 'run', status: 'interrupted', created_at: Date.now(), updated_at: Date.now() }] }
+  const updates: any[] = []
+  await page.route('http://localhost:4097/terminal/**', async route => {
+    if (route.request().method() === 'PATCH') { const data = route.request().postDataJSON(); updates.push(data); computer.remoteEnabled = data.remoteEnabled; computer.name = data.name; computer.revision++ }
+    if (route.request().method() === 'DELETE') computer.status = 'revoked'
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(route.request().method() === 'GET' ? { computers: [computer] } : { updated: true, revoked: true }) })
+  })
+  await page.goto('/login'); await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+  await page.locator('summary:visible').click(); await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.getByRole('tab', { name: 'Remote computers', exact: true }).click()
+  await expect(page.getByText('Status: offline.', { exact: false })).toBeVisible()
+  await expect(page.getByLabel('Recent remote runs')).toContainText('interrupted')
+  await page.getByRole('button', { name: 'Enable remote prompts' }).click()
+  await expect(page.getByRole('button', { name: 'Disable remote prompts' })).toBeVisible()
+  expect(updates[0]).toMatchObject({ expectedOwnerSubject: 'usr_test', remoteEnabled: true })
+  page.once('dialog', dialog => dialog.accept())
+  await page.getByRole('button', { name: 'Revoke computer' }).click()
+  await expect(page.getByText('Status: revoked.', { exact: false })).toBeVisible()
+})
+test('remote prompt retry retains its command ID after an ambiguous network failure', async ({ page }) => {
+  const requests: any[] = []
+  await page.route('http://localhost:4097/session/*/message', async route => {
+    requests.push(route.request().postDataJSON())
+    if (requests.length === 1) return route.abort('failed')
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ userMessageId: 'm_user', assistantMessageId: 'm_assistant', stopReason: 'queued' }) })
+  })
+  await page.goto('/login'); await page.getByRole('button', { name: /Sign in with Keyname/ }).click()
+  await page.getByRole('button', { name: 'Create first bot' }).click(); await page.getByLabel('Bot name').fill('Computer bot'); await page.getByRole('button', { name: 'Add bot', exact: true }).click()
+  const composer = page.getByRole('textbox', { name: 'Message', exact: true })
+  await composer.fill('Run on my computer'); await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.getByRole('alert')).toContainText('Your draft has been kept')
+  await expect(composer).toHaveValue('Run on my computer')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.getByText('Sent to computer. Awaiting local approval / reply.')).toBeVisible()
+  expect(requests).toHaveLength(2); expect(requests[0].requestId).toBeTruthy(); expect(requests[1].requestId).toBe(requests[0].requestId)
+})
 declare global{interface Window{__keynameMode?:string}}

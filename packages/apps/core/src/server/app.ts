@@ -12,6 +12,7 @@ import { messageRoutes } from './routes/messages.js'
 import { eventRoutes } from './routes/event.js'
 import { agentSettingsRoutes } from './routes/agent-settings.js'
 import { pairingRoutes } from './routes/pairing.js'
+import { terminalClientRoutes, terminalAccountRoutes } from './routes/terminal-pairing.js'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { appRouter } from '@multiterm/rue-trpc'
 import { createRueDatabase } from '@multiterm/rue-db'
@@ -20,6 +21,8 @@ export interface AppOptions {
   ctx: ServerContext
   /** Optional structured-logger toggle; defaults to off in tests. */
   log?: boolean
+  /** Paired-computer bridge; enabled explicitly by server startup. */
+  terminalPairing?: boolean
 }
 
 /**
@@ -49,6 +52,13 @@ export function createApp(opts: AppOptions): OpenAPIHono<{ Variables: { ctx: Ser
     }),
   )
 
+  const terminalPairing = opts.terminalPairing === true && opts.ctx.config.keyname.enabled
+  if (terminalPairing) app.route('/terminal-client', terminalClientRoutes())
+  // Bridge secrets are never forwarded to Keyname or accepted on account APIs.
+  app.use('*', async (c, next) => {
+    if (c.req.header('authorization')?.startsWith('Bearer rue_terminal_')) return c.json({ error: 'invalid_credential_scope' }, 401)
+    return next()
+  })
   app.use('*', keynameAuth(opts.ctx.config.keyname.enabled, opts.ctx.config.keyname.apiUrl, opts.ctx.config.keyname.clientId))
   // Retain local-only password support for offline development when Keyname is disabled.
   if (!opts.ctx.config.keyname.enabled) app.use('*', basicAuth(opts.ctx.config.server.password))
@@ -59,10 +69,11 @@ export function createApp(opts: AppOptions): OpenAPIHono<{ Variables: { ctx: Ser
   // is merged when we call .doc() below.
   app.route('/', healthRoutes())
   app.route('/', sessionRoutes())
-  app.route('/', messageRoutes())
+  app.route('/', messageRoutes(terminalPairing))
   app.route('/', eventRoutes())
   app.route('/', pairingRoutes())
   app.route('/', agentSettingsRoutes())
+  if (terminalPairing) app.route('/terminal', terminalAccountRoutes())
   app.all('/trpc/*', (c) => fetchRequestHandler({
     endpoint: '/trpc',
     req: c.req.raw,

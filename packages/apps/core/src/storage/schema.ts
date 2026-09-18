@@ -155,4 +155,69 @@ export const MIGRATIONS: ReadonlyArray<{ id: number; name: string; sql: string }
       revision INTEGER NOT NULL
     );`,
   },
+  {
+    id: 5,
+    name: 'terminal_pairing_credentials',
+    sql: `
+      CREATE TABLE terminal_pairing_requests (
+        id TEXT PRIMARY KEY,
+        verifier_hash TEXT NOT NULL,
+        pi_session_id TEXT NOT NULL,
+        expires_at INTEGER NOT NULL,
+        owner_subject TEXT,
+        bot_name TEXT,
+        code_hash TEXT,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        consumed_at INTEGER
+      );
+      CREATE TABLE terminal_connections (
+        id TEXT PRIMARY KEY,
+        owner_subject TEXT NOT NULL,
+        session_id TEXT NOT NULL UNIQUE REFERENCES sessions(id) ON DELETE CASCADE,
+        pi_session_id TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        expires_at INTEGER NOT NULL,
+        activated_at INTEGER,
+        revoked_at INTEGER,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX terminal_connections_owner ON terminal_connections(owner_subject);
+      CREATE INDEX terminal_pairing_expiry ON terminal_pairing_requests(expires_at);
+    `,
+  },
+  {
+    id: 6,
+    name: 'terminal_relay',
+    sql: `
+      ALTER TABLE terminal_connections ADD COLUMN name TEXT NOT NULL DEFAULT '';
+      ALTER TABLE terminal_connections ADD COLUMN remote_enabled INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE terminal_connections ADD COLUMN settings_revision INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE terminal_connections ADD COLUMN instance_id TEXT;
+      ALTER TABLE terminal_connections ADD COLUMN last_seen_at INTEGER;
+      CREATE TABLE terminal_commands (
+        id TEXT PRIMARY KEY,
+        connection_id TEXT NOT NULL REFERENCES terminal_connections(id) ON DELETE CASCADE,
+        request_id TEXT NOT NULL,
+        text TEXT NOT NULL,
+        user_message_id TEXT NOT NULL,
+        assistant_message_id TEXT NOT NULL,
+        status TEXT NOT NULL,
+        instance_id TEXT,
+        version INTEGER NOT NULL DEFAULT 0,
+        result TEXT NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        UNIQUE(connection_id, request_id)
+      );
+      CREATE INDEX terminal_commands_queue ON terminal_commands(connection_id, status, created_at);
+      CREATE TABLE terminal_mirrors (
+        connection_id TEXT NOT NULL REFERENCES terminal_connections(id) ON DELETE CASCADE,
+        event_id TEXT NOT NULL,
+        message_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        text TEXT NOT NULL,
+        PRIMARY KEY(connection_id, event_id)
+      );
+    `,
+  },
 ]

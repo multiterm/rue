@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { randomBytes } from 'node:crypto'
+import { enqueueTerminalPrompt, RelayError } from '../../storage/terminal-relay.js'
 import { agentSettings, agentApiKey } from '../../storage/agent-settings.js'
 import { piProvider } from '../../provider/pi.js'
 import { getProvider } from '../../provider/index.js'
@@ -21,6 +22,7 @@ const SendMessageRequestSchema = z
     systemPrompt: z.string().max(100_000).optional(),
     /** If true, run synchronously and wait for completion before responding. */
     wait: z.boolean().optional(),
+    requestId: z.string().uuid().optional(),
   })
   .openapi('SendMessageRequest')
 
@@ -64,7 +66,7 @@ function generateId(prefix: string): string {
  * Streaming output is delivered separately via `GET /event` (SSE): subscribe
  * before posting and you will see `part.delta` events arrive in real time.
  */
-export function messageRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext } }> {
+export function messageRoutes(terminalEnabled = false): OpenAPIHono<{ Variables: { ctx: ServerContext } }> {
   const app = new OpenAPIHono<{ Variables: { ctx: ServerContext } }>()
 
   app.openapi(
@@ -111,6 +113,18 @@ export function messageRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
 
       const session = getSession(ctx.db, sessionId, c.get('principal').subject)
       if (!session) return c.json({ error: 'session_not_found' }, 404)
+
+      // Fail closed even if mutable session metadata has been edited. A linked
+      // terminal must never fall back to the owner's configured cloud provider.
+      const terminal = ctx.db.prepare('SELECT id FROM terminal_connections WHERE session_id=?').get(sessionId)
+      if (terminal || session.agent === 'pi-terminal' || session.meta.terminalConnectionId) {
+        if (!terminalEnabled || !body.requestId) return c.json({ error: 'terminal_transport_unavailable' }, 503)
+        try {
+          const queued = enqueueTerminalPrompt(ctx.db, c.get('principal').subject, sessionId, body.requestId, body.text)
+          ctx.bus.publish('message.created', { sessionId, messageId: queued.user_message_id })
+          return c.json({ userMessageId: queued.user_message_id, assistantMessageId: queued.assistant_message_id, stopReason: queued.status }, 200)
+        } catch (error) { return c.json({ error: error instanceof RelayError ? error.code : 'terminal_transport_unavailable' }, 503) }
+      }
 
       const settings = agentSettings(ctx.db, c.get('principal').subject)
       const configured = settings.revision > 0

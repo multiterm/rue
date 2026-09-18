@@ -39,7 +39,8 @@ function AgentSettingsForm({ initial: incoming, onClose }: { initial: RueAgentSe
     <form.Field name="apiKey">{field => <Input label="OpenAI API key" type="password" autoComplete="new-password" maxLength={4096} disabled={!initial.keyStorageAvailable} value={field.state.value} onChange={event => field.handleChange(event.target.value)} show={{ label: true, hideRequireType: true }}/>}</form.Field>
     {initial.apiKeyConfigured && <form.Field name="removeKey">{field => <div className="grid gap-2"><Label htmlFor="agent-remove-key">Remove saved API key</Label><Checkbox id="agent-remove-key" checked={field.state.value} onCheckedChange={value => field.handleChange(value === true)}/></div>}</form.Field>}
     <p>Saving does not validate provider access. Recovery requires both the database backup and a separately protected server-key backup.</p>
-    <p>Pi runs chat only here. Shell, file access, extensions, deployment tools, and self-updates are disabled. Your key is never returned to the app or synced to devices.</p>
+    <p>These are server-side chat settings, not settings for paired computers. Paired bots use the model, credentials, and tool permissions selected in Pi on their host. Configure links under Remote computers.</p>
+    <p>Server-side Pi chat has no shell, file access, extensions, deployment tools, or self-updates. Your server key is never returned to the app or synced to devices.</p>
     {error && <p role="alert">{error}</p>}
     <form.Subscribe selector={state => state.isSubmitting}>{pending => <div className="bot-dialog-actions"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" disabled={pending} isLoading={pending}>Save agent settings</Button></div>}</form.Subscribe>
   </form>

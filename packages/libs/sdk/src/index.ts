@@ -7,13 +7,16 @@ export const RUE_SDK_VERSION = '0.2.0-b.0'
 export interface RueClientOptions { baseUrl:string; token?:string|(()=>string|undefined|Promise<string|undefined>); fetch?:typeof globalThis.fetch; eventRetryMs?:number; eventMaxRetryMs?:number }
 export interface RueAgentSettings { ownerSubject:string; harness:'pi'; provider:'openai'; model:string; systemPrompt:string; revision:number; apiKeyConfigured:boolean; keyStorageAvailable:boolean; models:string[] }
 export interface RueAgentSettingsInput { expectedOwnerSubject:string; harness:'pi'; provider:'openai'; model:string; systemPrompt:string; expectedRevision:number; apiKey?:string|null }
+export interface RueTerminalConnection { id:string; ownerSubject:string; sessionId:string; piSessionId:string; expiresAt:number; activatedAt:number|null; revokedAt:number|null }
+export interface RueRemoteComputer { id:string; ownerSubject:string; sessionId:string; name:string; revision:number; remoteEnabled:boolean; lastSeenAt:number|null; expiresAt:number; status:string; runs:Array<{id:string;status:string;created_at:number;updated_at:number}> }
+export interface RueTerminalApproval { code:string; expiresAt:number; ownerSubject:string }
 export interface RueHealth { ok:boolean; version:string }
 export interface RueSession { id:string; title:string; agent:string|null; provider:string|null; model:string|null; directory:string|null; scopes:string[]; parentId:string|null; ownerSubject:string; createdAt:number; updatedAt:number; meta:Record<string,unknown> }
 export interface RueMessage { id:string; sessionId:string; role:'user'|'assistant'|'system'; time:number; provider:string|null; model:string|null; agent:string|null; meta:Record<string,unknown>; seq:number }
 export interface RuePart { id:string; sessionId:string; messageId:string; type:string; seq:number; payload:Record<string,unknown> }
 export interface CreateSessionInput { title?:string; agent?:string; provider?:string; model?:string; directory?:string; scopes?:string[]; parentId?:string; meta?:Record<string,unknown> }
 export interface UpdateSessionInput extends CreateSessionInput {}
-export interface SendMessageInput { text:string; provider?:string; model?:string; systemPrompt?:string; wait?:boolean }
+export interface SendMessageInput { text:string; provider?:string; model?:string; systemPrompt?:string; wait?:boolean; requestId?:string }
 export interface SendMessageResult { userMessageId:string; assistantMessageId:string; text?:string; stopReason?:string }
 export interface RueEvent<T=Record<string,unknown>> { id:number; type:string; time:number; payload:T }
 export type RueDevicePlatform='web'|'desktop'|'ios'|'android'|'terminal'
@@ -31,6 +34,11 @@ export function createRueClient(options:RueClientOptions){
     health:()=>request<RueHealth>('/health'),
     agentSettings:()=>request<RueAgentSettings>('/agent/settings'),
     saveAgentSettings:(input:RueAgentSettingsInput)=>request<RueAgentSettings>('/agent/settings',{method:'PUT',body:JSON.stringify(input)}),
+    approveTerminalPairing:(id:string,input:{expectedOwnerSubject:string;botName:string})=>request<RueTerminalApproval>(`/terminal/requests/${encodeURIComponent(id)}/approve`,{method:'POST',body:JSON.stringify(input),redirect:'error'}),
+    remoteComputers:()=>request<{computers:RueRemoteComputer[]}>('/terminal/computers'),
+    configureComputer:(id:string,input:{expectedOwnerSubject:string;name:string;remoteEnabled:boolean;expectedRevision:number})=>request<{updated:true}>(`/terminal/computers/${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify(input),redirect:'error'}),
+    terminalConnections:()=>request<{connections:RueTerminalConnection[]}>('/terminal/connections'),
+    revokeTerminalConnection:(id:string)=>request<{revoked:boolean}>(`/terminal/connections/${encodeURIComponent(id)}`,{method:'DELETE'}),
     sessions:()=>request<RueSession[]>('/session'),
     session:(id:string)=>request<RueSession>(`/session/${encodeURIComponent(id)}`),
     createSession:(input:CreateSessionInput={})=>request<RueSession>('/session',{method:'POST',body:JSON.stringify(input)}),

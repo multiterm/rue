@@ -2,8 +2,9 @@ import { useState, type ReactNode, type KeyboardEvent } from 'react'
 import { Button, Dialog } from '@multiterm/rue-ui'
 import { AgentSettingsPanel } from './agent-settings'
 import './settings.css'
+import { RemoteComputersPanel } from './remote-computers'
 
-const categories = ['General', 'Agent', 'Security', 'Developer'] as const
+const categories = ['General', 'Agent', 'Remote computers', 'Security', 'Developer'] as const
 type Category = typeof categories[number]
 
 export function SettingsPanel({ owner, general, onClose }: { owner: string; general: ReactNode; onClose(): void }) {
@@ -32,8 +33,9 @@ export function SettingsPanel({ owner, general, onClose }: { owner: string; gene
           <h3 className="mb-4 mt-0 text-lg font-semibold">{value}</h3>
           {value === 'General' && <><p className="mb-5 text-sm text-muted">Customize Rue’s appearance across your devices.</p>{general}</>}
           {value === 'Agent' && agentVisited && <AgentSettingsPanel owner={owner} onClose={onClose}/>}
+          {value === 'Remote computers' && category === value && <RemoteComputersPanel key={owner} owner={owner}/>}
           {value === 'Security' && <div className="space-y-4 text-sm"><p>Sign-in is managed by Keyname. Rue does not store your account password.</p><p>Provider API keys are encrypted on the server and never returned to clients. Replace or remove your saved key on the Agent page.</p><p>Password and multi-factor authentication controls are not available in this settings modal yet.</p></div>}
-          {value === 'Developer' && <div className="space-y-4 text-sm"><p>Rue currently uses Pi for text chat. Shell access, file tools, extensions, deployment execution, and self-updates are disabled.</p><p>Developer configuration controls are not available yet. Changing Agent settings does not grant tool permissions.</p></div>}
+          {value === 'Developer' && <div className="space-y-4 text-sm"><p>Rue’s server-side Pi chat has no shell or file tools. Paired computers use their local Pi model and permissions, with explicit approval for remote prompts.</p><p>Use Remote computers to manage host links. Changing server Agent settings does not grant local tool permissions or change a paired computer’s provider.</p></div>}
         </section>)}
       </div>
       </div>

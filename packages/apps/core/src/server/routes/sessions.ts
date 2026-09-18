@@ -1,3 +1,4 @@
+import { reconcileTerminalSession } from '../../storage/terminal-relay.js'
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { randomBytes } from 'node:crypto'
 import {
@@ -261,6 +262,7 @@ export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
     (c) => {
       const { id } = c.req.valid('param')
       if (!getSession(c.var.ctx.db, id, c.get('principal').subject)) return c.json([], 200)
+      reconcileTerminalSession(c.var.ctx.db, id)
       return c.json(listSessionParts(c.var.ctx.db, id), 200)
     },
   )

@@ -40,7 +40,7 @@ export async function listen(opts: ListenOptions): Promise<RueServer> {
   })()
   if (!ctx.orm) ctx.orm = createRueDatabase(ctx.db)
 
-  const app = createApp({ ctx, log: opts.log })
+  const app = createApp({ ctx, log: opts.log, terminalPairing: process.env.RUE_TERMINAL_BRIDGE === 'true' || ['development', 'develop'].includes(process.env.SANDBLOCKS_RUNTIME ?? '') })
 
   const { hostname, port } = opts.config.server
   const server: ServerType = await new Promise((resolve) => {
