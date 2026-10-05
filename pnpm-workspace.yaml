@@ -5,6 +5,14 @@ packages:
 overrides:
   decode-uri-component: 0.5.0
   'js-yaml@>=4.0.0 <4.3.2': 4.3.2
+  # Security floors scoped to affected releases; preserve other major versions.
+  'undici@>=8.0.0 <8.10.2': 8.10.2
+  'fast-uri@>=3.0.0 <3.1.8': 3.1.8
+  'brace-expansion@>=5.0.0 <5.0.12': 5.0.12
+  'xcode>uuid': 11.1.1
+  # Upgrade Metro's own image parser instead of breaking image-size's v1 API.
+  'metro@0.84.4': 0.84.6
+  'metro@0.87.0': 0.87.1
 
 allowBuilds:
   # Pi's unused Google SDK preinstall is a no-op; protobufjs only prints a version warning.
