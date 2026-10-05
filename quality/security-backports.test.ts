@@ -22,6 +22,9 @@ test('backport allowance cannot cover another finding/version or silently outliv
     expect(() => assertBackportEvidence(spec, { ...advisory, ...patch }, evidence, '2026-10-05')).toThrow()
   }
   expect(() => assertBackportEvidence(spec, advisory, evidence, '2026-10-20')).toThrow()
+  for (const patch of [{ expires: undefined }, { expires: 'never' }, { expires: '2026-02-30' }, { files: {} }]) {
+    expect(() => assertBackportEvidence({ ...spec, ...patch }, advisory, evidence, '2026-10-05')).toThrow()
+  }
 })
 
 test('every installed backport matches its pin and passes bounded security regressions', () => {

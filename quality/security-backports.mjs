@@ -9,7 +9,9 @@ const root = fileURLToPath(new URL('../', import.meta.url))
 const hash = bytes => createHash('sha256').update(bytes).digest('hex')
 
 export function assertBackportEvidence(spec, advisory, evidence, today = new Date().toISOString().slice(0, 10)) {
-  if (!spec || spec.expires < today || advisory.module_name !== spec.module ||
+  if (!spec || typeof spec.expires !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(spec.expires) ||
+      !Number.isFinite(Date.parse(spec.expires)) || new Date(spec.expires).toISOString().slice(0, 10) !== spec.expires ||
+      spec.expires < today || !spec.files || !Object.keys(spec.files).length || advisory.module_name !== spec.module ||
       advisory.url !== `https://github.com/advisories/${spec.ghsa}` ||
       !Array.isArray(advisory.findings) || !advisory.findings.length ||
       advisory.findings.some(f => f.version !== spec.version) ||
