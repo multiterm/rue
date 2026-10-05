@@ -1,0 +1,32 @@
+{
+  "1240912": {
+    "module": "node-forge",
+    "version": "1.4.0",
+    "ghsa": "GHSA-86w9-cpqp-85rv",
+    "expires": "2026-10-19",
+    "upstream": "https://github.com/digitalbazaar/forge/pull/1152",
+    "commit": "ceba34402e329f0365134f23fe19898756527d65",
+    "patch": "patches/node-forge@1.4.0.patch",
+    "sha256": "4fa957cddb4b4601a48b535053d0fec7ed013f9d075660a38365f285fc830fe0",
+    "files": {
+      "lib/rsa.js": "acc22e5d36e27832c34e02dd3933aad7977d45b047eead5016520735efedc9c5"
+    }
+  },
+  "1240992": {
+    "module": "braces",
+    "version": "3.0.3",
+    "ghsa": "GHSA-vfj7-8cjw-p6xm",
+    "expires": "2026-10-19",
+    "upstream": "https://github.com/micromatch/braces/pull/72",
+    "commit": "28d440b5dd449dbf1fe6f3506cf94ecca4d02660",
+    "patch": "patches/braces@3.0.3.patch",
+    "sha256": "bfdb0c171556074c2785f98d0a7355209223df8e29dbc2ff489240c16a47da97",
+    "files": {
+      "lib/compile.js": "b651f7715e6db8942ce61d3394357b4d81c8ece88240aa31a458ea1165edd195",
+      "lib/constants.js": "f9fb688959232eee3e6ad7906a5b0e3234815db49ee857ef86983d65b917dc7c",
+      "lib/expand.js": "7ea3e14c2b2b256ef244fd3d83b8fcaa20aa2232b4e6d768c3bb6ab567f66cf5",
+      "lib/parse.js": "72aabaadaa555cdfbd07fbd7c7f743373e4dc8eec04a97550cc57bbeec30eb6c",
+      "lib/stringify.js": "49dc2d8bafa74f34715a18a845bcb82ce66caaf3bab4cf117998e06b1f9a50a9"
+    }
+  }
+}

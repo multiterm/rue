@@ -12,6 +12,8 @@ The owner subsequently approved dependency remediation. Scoped updates to undici
 
 Preview remains blocked by **GHSA-86w9-cpqp-85rv** (`node-forge`) and **GHSA-vfj7-8cjw-p6xm** (`braces`). The audit names fixed versions 1.4.1 and 3.0.4 respectively, but both returned HTTP 404 from the public npm registry on 2026-10-05; latest published versions were still 1.4.0 and 3.0.3. No audit exceptions were extended or added. Recheck publication, or separately review upstream backports and their audit treatment; do not label this a clean release. Passing local builds is not preview deployment acceptance. The application remains SQLite-backed; the PostgreSQL handler integration and direct database transition below are still pending.
 
+The owner subsequently approved reviewed backports. Exact-version pnpm patches now apply the Forge nested-DigestAlgorithm check and the braces bounded-depth proposal, with hash-bound installed-code checks, bounded regression tests, and conditional audit treatment expiring 2026-10-19. The raw findings remain visible. Neither proposal is an official fixed release; braces PR 72 was closed unmerged. See [security backports](security-backports.md) for provenance, limitations and removal requirements. This supersedes the dependency-only blocker above, not the outstanding PostgreSQL integration or deployment acceptance checks.
+
 ## Isolation and preservation
 
 - Owning repository: `/Volumes/MOTHERSHIP/dev/Projects/multiterm/rue`.
