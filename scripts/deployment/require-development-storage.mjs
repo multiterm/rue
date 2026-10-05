@@ -17,7 +17,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const args = process.argv.slice(2)
   if (args[0] === '--') args.shift()
   if (!args.length) throw new Error('Development API command required')
-  const child = spawn(args[0], args.slice(1), { stdio: 'inherit' })
+  // This launcher is development-only. Keep an explicit false override and leave
+  // production startup untouched; core still requires Keyname owner authentication.
+  const child = spawn(args[0], args.slice(1), { stdio: 'inherit', env: { ...process.env, RUE_MANAGED_WORKERS: process.env.RUE_MANAGED_WORKERS ?? 'true', RUE_MANAGED_AGENTS: process.env.RUE_MANAGED_AGENTS ?? 'true' } })
   for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => child.kill(signal))
   child.once('error', () => { console.error('Could not start development API'); process.exitCode = 1 })
   child.once('exit', code => { process.exitCode = code ?? 1 })

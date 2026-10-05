@@ -1,0 +1,1 @@
+.rue-scroll-viewport{overscroll-behavior:contain}.rue-scroll-viewport>div{display:block!important}.rue-scroll-track{z-index:5;background:transparent}.rue-scroll-track [data-radix-scroll-area-thumb]{background:var(--rue-border-strong,var(--rue-muted))}.rue-scroll-viewport:focus-visible{outline:2px solid var(--rue-border-strong);outline-offset:-2px}

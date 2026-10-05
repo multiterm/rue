@@ -1,0 +1,44 @@
+.grok-shell{grid-template-rows:60px minmax(0,1fr)}
+.dashboard-header{grid-column:2;grid-row:1;display:flex;align-items:center;gap:12px;min-width:0;padding:0 20px;border-bottom:1px solid var(--rue-border);background:var(--rue-bg-2);z-index:20}
+.dashboard-header-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.dashboard-icon,.dashboard-theme button{display:grid;place-items:center;width:36px;height:36px;padding:0;border:1px solid var(--rue-border);border-radius:8px;background:var(--rue-surface-2);color:var(--rue-muted);cursor:pointer}
+.dashboard-icon:hover,.dashboard-theme button:hover{color:var(--rue-text);border-color:var(--rue-muted)}
+.dashboard-icon:focus-visible,.dashboard-theme button:focus-visible{outline:2px solid var(--rue-focus);outline-offset:3px}
+.dashboard-menu-toggle,.dashboard-logo{display:none}
+.bot-sidebar{grid-column:1;grid-row:1/-1}
+.bot-conversation{grid-column:2;grid-row:2;grid-template-rows:minmax(0,1fr) auto;grid-auto-rows:auto}
+.conversation-header{position:sticky;top:0;z-index:10;flex-shrink:0;display:flex;justify-content:space-between;gap:12px;min-height:72px;height:auto;padding:12px 20px;background:var(--rue-surface-2);border-bottom:1px solid var(--rue-border)}
+.conversation-header>div{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
+.conversation-header .bot-header-copy{min-width:0;display:flex;flex-direction:column;gap:3px}
+.conversation-header .bot-header-copy>strong{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bot-header-description{color:var(--rue-muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.conversation-header .bot-labels{flex-wrap:nowrap;overflow:hidden}
+.conversation-header .bot-labels>span{white-space:nowrap}
+.conversation-header details{flex-shrink:0;align-self:center}
+.conversation-header summary{display:grid;place-items:center;width:36px;height:36px;border-radius:8px;color:var(--rue-muted)}
+.conversation-header summary:hover{background:var(--rue-surface-2);color:var(--rue-text)}
+.conversation-header summary:focus-visible{outline:2px solid var(--rue-focus)}
+.agent-connection-controls{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.agent-connection-controls>button[data-variant=bare]{display:grid;place-items:center;min-width:30px;height:34px;border:0;border-radius:8px;background:transparent;color:var(--rue-muted);cursor:pointer;padding:6px}
+.agent-connection-controls>button[data-variant=bare]:enabled:hover{background:var(--rue-bg)}
+.agent-connection-controls>button:focus-visible{outline:2px solid var(--rue-focus)}
+.agent-connection-controls>button:disabled{opacity:.5;cursor:wait}
+.agent-connection-controls .remote-status-dot{display:block;width:9px;height:9px;border-radius:50%;background:var(--rue-warning)}
+.agent-connection-controls .remote-status-dot[data-state=connected]{background:var(--rue-success)}
+.agent-connection-controls .remote-status-dot[data-state=disconnected]{background:var(--rue-danger)}
+.connection-diagnostics{font-size:13px}.connection-diagnostics dl{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.connection-diagnostics dt{color:var(--rue-muted)}.connection-diagnostics dd{overflow-wrap:anywhere}
+@media(max-width:700px){
+  .grok-shell{grid-template-rows:60px minmax(0,1fr)}
+  .dashboard-header{grid-column:1;grid-row:1;padding:0 14px}
+  .dashboard-menu-toggle{display:grid;width:40px;height:40px}
+  .dashboard-logo{display:inline-flex;font-size:20px}
+  .dashboard-theme{display:none}
+  .dashboard-header-actions>.dashboard-icon{width:40px;height:40px}
+  .bot-sidebar,.bot-conversation{grid-column:1;grid-row:2}
+  .bot-sidebar .window-bar{padding:10px 16px;min-height:48px}
+  .bot-sidebar .window-bar>span{display:none}
+  .bot-sidebar .window-bar::before{content:'Your bots';font-size:13px;font-weight:600;color:var(--rue-muted)}
+  .conversation-header{padding:10px 14px;min-height:72px;gap:8px}
+  .conversation-header>div{gap:10px}
+  .conversation-header .bot-execution{font-size:10px;overflow-wrap:anywhere}
+}

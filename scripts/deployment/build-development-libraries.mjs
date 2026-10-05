@@ -3,7 +3,7 @@ import { parseEnv } from 'node:util'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 
-export function developmentBuildPayload(state) {
+export function developmentBuildPayload(state, {install = true} = {}) {
   if (state.environment !== 'development' || state.runtimeMode !== 'development' || !state.workerId || !state.workspaceId || !state.sandboxId || !state.sourceRevision) throw new Error('A bound development workspace is required')
   return {
     kind: 'workspace.step.run', maxAttempts: 1,
@@ -12,7 +12,7 @@ export function developmentBuildPayload(state) {
       revisionId: state.sourceRevision, runtimeType: 'development', workspaceImage: 'node:22-bookworm',
       placement: { workerId: state.workerId, ...(state.hostId ? { hostId: state.hostId } : {}), requiredWorkerRole: 'development' },
       steps: [
-        { id: 'workspace-setup', command: ['corepack', 'pnpm', 'install', '--frozen-lockfile', '--config.minimumReleaseAge=0'], workingDirectory: '.', timeoutSeconds: 1800, inputs: ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'], outputs: [], required: true },
+        ...(install ? [{ id: 'workspace-setup', command: ['corepack', 'pnpm', 'install', '--frozen-lockfile', '--config.minimumReleaseAge=0'], workingDirectory: '.', timeoutSeconds: 1800, inputs: ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'], outputs: [], required: true }] : []),
         { id: 'build-libs', command: ['corepack', 'pnpm', '--filter', './packages/libs/**', '-r', 'exec', 'rune', 'build'], workingDirectory: '.', timeoutSeconds: 600, inputs: ['package.json', 'pnpm-lock.yaml', 'packages/libs'], outputs: ['auth', 'config', 'db', 'gds', 'sdk', 'trpc', 'ui'].map((name) => `packages/libs/${name}/dist`), required: true },
       ],
     },
@@ -20,7 +20,7 @@ export function developmentBuildPayload(state) {
 }
 
 /** Operator-only native-worker path; never expose the control-plane key to clients. */
-export async function buildDevelopmentLibraries(root, apiUrl) {
+export async function buildDevelopmentLibraries(root, apiUrl, options = {}) {
   let state, local
   try {
     state = JSON.parse(await readFile(join(root, '.sandblocks/sandbox-development.json'), 'utf8'))
@@ -31,7 +31,7 @@ export async function buildDevelopmentLibraries(root, apiUrl) {
   const key = config.SANDBLOCKS_API_KEY
   const base = apiUrl ?? config.SANDBLOCKS_API_URL
   if (!key || !base) throw new Error('Operator API configuration is required')
-  const body = developmentBuildPayload(state)
+  const body = developmentBuildPayload(state, options)
   const attempt = randomUUID()
   async function request(path, init = {}) {
     // GET polling is safe to retry; submission uses the same idempotency key.

@@ -1,3 +1,5 @@
+import { managedAuthority } from './managed-agents.js'
+import { clearProviderKeyGrants } from './provider-keys.js'
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
 import type { Database } from 'better-sqlite3'
@@ -16,9 +18,9 @@ const subjectSchema = z.string().min(1).max(512)
 const sessionSchema = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
 const nameSchema = z.string().trim().min(1).max(60).regex(/^[^\x00-\x1f\x7f]*$/)
 
-export class TerminalPairingError extends Error {
-  constructor(readonly code: 'invalid_request' | 'pairing_unavailable' | 'already_approved' | 'already_linked' | 'invalid_pairing' | 'invalid_terminal_credential') { super(code) }
-}
+import {TerminalPairingError,type TerminalConnection} from '@multiterm/rue-db'
+export {TerminalPairingError}
+export type {TerminalConnection}
 interface PairingRow {
   id: string; verifier_hash: string; pi_session_id: string; expires_at: number
   owner_subject: string | null; bot_name: string | null; code_hash: string | null
@@ -28,10 +30,6 @@ interface ConnectionRow {
   id: string; owner_subject: string; session_id: string; pi_session_id: string
   token_hash: string; expires_at: number; activated_at: number | null
   revoked_at: number | null; created_at: number
-}
-export interface TerminalConnection {
-  id: string; ownerSubject: string; sessionId: string; piSessionId: string
-  expiresAt: number; activatedAt: number | null; revokedAt: number | null
 }
 function publicConnection(row: ConnectionRow): TerminalConnection {
   return { id: row.id, ownerSubject: row.owner_subject, sessionId: row.session_id, piSessionId: row.pi_session_id,
@@ -93,6 +91,8 @@ export function exchangeTerminalPairing(db: Database, requestId: string, verifie
     const token = `rue_terminal_${randomBytes(32).toString('base64url')}`
     const expiresAt = now + TOKEN_TTL
     if (existing) {
+      // Renew history, not credential-sharing consent.
+      clearProviderKeyGrants(db, row.owner_subject, { type: 'terminal', id })
       // Renew a revoked/expired link without creating another bot or losing history.
       const unfinished = db.prepare("SELECT id,assistant_message_id,result FROM terminal_commands WHERE connection_id=? AND status IN ('queued','claimed','running')").all(id) as { id: string; assistant_message_id: string; result: string }[]
       for (const command of unfinished) {
@@ -118,6 +118,10 @@ function credential(db: Database, token: string, now: number): ConnectionRow {
   const row = db.prepare('SELECT c.* FROM terminal_connections c JOIN sessions s ON s.id=c.session_id AND s.owner_subject=c.owner_subject WHERE c.token_hash=? AND c.expires_at>? AND c.revoked_at IS NULL')
     .get(hash(token), now) as ConnectionRow | undefined
   if (!row) throw new TerminalPairingError('invalid_terminal_credential')
+  try {
+    const until = managedAuthority(db, row.id, now)
+    if (until !== undefined) return { ...row, expires_at: Math.min(row.expires_at, until) }
+  } catch { throw new TerminalPairingError('invalid_terminal_credential') }
   return row
 }
 /** Activate only after the terminal shows and explicitly confirms the approved owner and scope. */
@@ -147,6 +151,9 @@ export function listTerminalConnections(db: Database, ownerSubject: string): Ter
   return (db.prepare('SELECT * FROM terminal_connections WHERE owner_subject=? ORDER BY created_at DESC').all(ownerSubject) as ConnectionRow[]).map(publicConnection)
 }
 export function revokeTerminalConnection(db: Database, ownerSubject: string, connectionId: string, now = Date.now()): boolean {
-  return db.prepare('UPDATE terminal_connections SET revoked_at=COALESCE(revoked_at,?) WHERE id=? AND owner_subject=?')
-    .run(now, connectionId, ownerSubject).changes === 1
+  return db.transaction(() => {
+    const changed = db.prepare('UPDATE terminal_connections SET revoked_at=COALESCE(revoked_at,?) WHERE id=? AND owner_subject=?').run(now, connectionId, ownerSubject).changes === 1
+    if (changed) clearProviderKeyGrants(db, ownerSubject, { type: 'terminal', id: connectionId })
+    return changed
+  }).immediate()
 }

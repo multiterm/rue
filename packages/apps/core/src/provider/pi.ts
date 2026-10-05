@@ -9,8 +9,13 @@ export const piModelIds = () => models.getModels('openai').map(model => model.id
 
 function history(request: ChatRequest): Message[] {
   return request.messages.filter(message => message.role !== 'system').map(message => {
-    if (typeof message.content !== 'string') throw new Error('Pi chat currently supports text messages only')
-    if (message.role === 'user') return { role: 'user', content: message.content, timestamp: Date.now() }
+    if (message.role === 'user') return { role: 'user', content: typeof message.content === 'string' ? message.content : message.content.map(part => {
+      if (part.type === 'text') return part
+      const match = /^data:(image\/(?:png|jpeg|gif|webp));base64,([A-Za-z0-9+/=]+)$/.exec(part.image_url.url)
+      if (!match) throw new Error('Unsupported image attachment')
+      return { type: 'image' as const, mimeType: match[1]!, data: match[2]! }
+    }), timestamp: Date.now() }
+    if (typeof message.content !== 'string') throw new Error('Unsupported assistant content')
     return { role: 'assistant', content: [{ type: 'text', text: message.content }], api: 'openai-responses', provider: 'openai', model: request.model,
       usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } }, stopReason: 'stop', timestamp: Date.now() }
   })
@@ -34,6 +39,7 @@ export function createPiProvider(runtimeModels = models): Provider { return {
     const abort = () => agent.abort()
     signal.addEventListener('abort', abort, { once: true })
     const unsubscribe = agent.subscribe(event => {
+      if(event.type==='message_end'&&event.message.role==='assistant')request.onUsage?.(event.message)
       if (event.type === 'message_update' && event.assistantMessageEvent.type === 'text_delta') onText(event.assistantMessageEvent.delta)
     })
     try {

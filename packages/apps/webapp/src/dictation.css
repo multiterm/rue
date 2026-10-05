@@ -1,0 +1,13 @@
+.composer > .dictation-undo {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  justify-self: start;
+  width: auto;
+  height: auto;
+  min-height: 28px;
+  padding: 4px 6px !important;
+  border-radius: 6px !important;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}

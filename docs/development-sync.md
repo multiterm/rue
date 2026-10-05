@@ -5,16 +5,21 @@ pnpm exec rune sync-development   # upload, rebuild libraries, run full deployed
 pnpm exec rune watch-development  # continuously synchronize local edits to development
 ```
 
+Both Rue's `sync-development` runner and watcher now parse runtime TypeScript/JavaScript **before** uploading source. Syntax errors abort that attempt without a remote sync/build and report only file/line/diagnostic codes. Run `node scripts/deployment/check-development-syntax.mjs` independently. This executes no source and is not a typecheck or an immutable-snapshot guarantee: edits racing an upload still require care. Direct Sandblocks CLI calls bypass this Rue-side gate. Tests/builds remain necessary.
+
+The Rue watcher was restarted on 2026-10-01 to load the guard and completed a synchronization. Its old process did not exit on SIGTERM; after confirming its identity, no child process and no active Rue workspace operation, it was terminated and its stale lock preserved rather than blindly deleted. The other application's watcher was not touched.
+
 Sync is one-way, local to the bound mutable development sandbox. It includes
 uncommitted source files, but never promotes preview or production. Release
 candidates must come from committed source on `pre` or `prod`.
 
 The watcher serializes uploads and snapshots before each run, retaining edits
 made while an upload/build is running. Application-only edits use Vite/tsx hot
-reload. Library or dependency changes additionally run the frozen install and
-shared-library build in the development workspace. The first watch iteration
-also builds libraries. Failed runs retry after the next source edit; inspect the
-protected logs. A changed sandbox/project/workspace stops the watcher. A lock in
+reload. Library changes run the shared-library build in the development workspace.
+The first iteration and changes to dependency manifests/lockfiles also run the
+frozen install. Ordinary library source edits do not repeatedly reinstall live
+node_modules. Failed runs retry with bounded backoff (up to 60 seconds), or after
+the next source edit; inspect the protected logs. A changed sandbox/project/workspace stops the watcher. A lock in
 `.sandblocks/local-sync.lock` prevents duplicate watchers; remove a stale lock
 only after confirming its owner has stopped.
 

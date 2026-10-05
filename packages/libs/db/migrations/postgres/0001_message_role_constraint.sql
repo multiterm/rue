@@ -1,0 +1,1 @@
+ALTER TABLE "messages" ADD CONSTRAINT "messages_role_check" CHECK ("messages"."role" IN ('user','assistant','system'));

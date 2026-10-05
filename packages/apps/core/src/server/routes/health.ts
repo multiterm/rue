@@ -6,6 +6,7 @@ const HealthSchema = z
     ok: z.boolean(),
     version: z.string(),
     uptimeSec: z.number(),
+    authentication: z.enum(['keyname', 'password', 'none']),
   })
   .openapi('Health')
 
@@ -29,6 +30,7 @@ export function healthRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext } 
         ok: true,
         version: '0.0.0',
         uptimeSec: Math.floor((Date.now() - startedAt) / 1000),
+        authentication: c.var.ctx.config.keyname.enabled ? 'keyname' as const : c.var.ctx.config.server.password ? 'password' as const : 'none' as const,
       },
       200,
     ),

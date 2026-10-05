@@ -1,4 +1,6 @@
 .sandblocks/
+.locker/
+.locker.local.json
 .worktrees/
 .runway/
 node_modules/
@@ -11,6 +13,9 @@ test-results/
 .env.*
 !.env.example
 *.tsbuildinfo
+# Generated process crash dumps must never enter development source bundles.
+/core
+/core.[0-9]*
 .DS_Store
 .expo/
 packages/apps/mobile/android/

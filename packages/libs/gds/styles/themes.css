@@ -1,5 +1,9 @@
 @import "./tokens.css";
 
+/* Dividers have their own token: improve dark contrast without brightening every input border. */
+:root, [data-theme] { --rue-separator:var(--rue-border-strong); }
+[data-theme][data-mode="dark"] { --rue-separator:color-mix(in srgb,var(--rue-text) 38%,var(--rue-elevated)); }
+
 :root {
   --rue-danger:#dc4545; --rue-danger-contrast:#fff; --rue-warning:#e49a18; --rue-warning-contrast:#241604; --rue-success:#249b62; --rue-success-contrast:#fff;
   --rue-bot-1:#54c987; --rue-bot-2:#f4a62a; --rue-bot-3:#7453ee; --rue-bot-4:#7b52ed; --rue-bot-5:#408bd8; --rue-bot-6:#ef7936; --rue-bot-foreground:#fff;

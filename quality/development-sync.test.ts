@@ -6,7 +6,7 @@ test('development checks run only after native-worker dependencies and libraries
   const order: string[] = []
   const run = vi.fn(async (args: string[]) => { order.push(args[1]!) })
   const build = vi.fn(async () => { order.push('native-build') })
-  await syncDevelopment(run, '/fixture', 'https://api.sandblocks.dev', build)
+  await syncDevelopment(run, '/fixture', 'https://api.sandblocks.dev', build, async () => {})
   expect(order).toEqual(['sync', 'native-build', 'check'])
   expect(run.mock.calls[0]![0]).toContain('none')
   expect(run.mock.calls[1]![0]).toContain('full')
@@ -16,7 +16,7 @@ test('development checks run only after native-worker dependencies and libraries
 test('failed native build prevents deployment checks', async () => {
   const run = vi.fn(async () => {})
   const build = vi.fn().mockRejectedValue(new Error('Install failed'))
-  await expect(syncDevelopment(run, '/fixture', undefined, build)).rejects.toThrow('Install failed')
+  await expect(syncDevelopment(run, '/fixture', undefined, build, async () => {})).rejects.toThrow('Install failed')
   expect(run).toHaveBeenCalledTimes(1)
 })
 test('native build is explicitly worker-bound and uses frozen dependency installation', () => {

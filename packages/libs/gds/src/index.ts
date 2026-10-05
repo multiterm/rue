@@ -38,16 +38,22 @@ export const rueNativeThemePalettes: Record<RueTheme,Record<RueMode,RuePalette>>
 /** Default native palette retained for TUI and mobile consumers. */
 export const rueNativeThemes: Record<RueMode,RuePalette> = rueNativeThemePalettes.Rue
 
-export function applyRueTheme(theme:RueTheme,mode:RueMode){
+let stopSystemTheme:(()=>void)|undefined
+export function applyRueTheme(theme:RueTheme,mode:RueMode|'system'){
   if(typeof document==='undefined')return
   document.documentElement.dataset.theme=theme
-  document.documentElement.dataset.mode=mode
+  stopSystemTheme?.();stopSystemTheme=undefined
+  if(mode==='system'){
+    const media=window.matchMedia('(prefers-color-scheme: dark)')
+    const update=()=>{document.documentElement.dataset.mode=media.matches?'dark':'light'}
+    update();media.addEventListener('change',update);stopSystemTheme=()=>media.removeEventListener('change',update)
+  }else document.documentElement.dataset.mode=mode
   localStorage.setItem('rue.theme',theme)
   localStorage.setItem('rue.mode',mode)
 }
-export function readRueTheme():{theme:RueTheme;mode:RueMode}{
+export function readRueTheme():{theme:RueTheme;mode:RueMode|'system'}{
   if(typeof localStorage==='undefined')return{theme:'Rue',mode:'light'}
   const theme=localStorage.getItem('rue.theme') as RueTheme
-  const mode=localStorage.getItem('rue.mode') as RueMode
-  return{theme:rueThemes.includes(theme)?theme:'Rue',mode:rueModes.includes(mode)?mode:'light'}
+  const mode=localStorage.getItem('rue.mode') as RueMode|'system'
+  return{theme:rueThemes.includes(theme)?theme:'Rue',mode:mode==='system'||rueModes.includes(mode)?mode:'light'}
 }

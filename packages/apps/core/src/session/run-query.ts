@@ -1,5 +1,6 @@
 import type { Database } from 'better-sqlite3'
-import { randomBytes } from 'node:crypto'
+import { randomBytes,randomUUID } from 'node:crypto'
+import {recordAgentUsage,usageCredential} from '../storage/agent-usage.js'
 import type { Bus } from '../bus/index.js'
 import {
   type ChatMessage,
@@ -164,6 +165,15 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
             messages: conversation,
             signal,
             maxTokens: maxTokensOverride,
+            onUsage:raw=>{
+              try{
+                const message=raw as {provider:string;model:string;usage:{input:number;output:number;cacheRead:number;cacheWrite:number;cost?:{total:number}}}
+                const owner=(db.prepare('SELECT owner_subject AS owner FROM sessions WHERE id=?').get(sessionId) as {owner:string}|undefined)?.owner
+                if(!owner||!message.usage)return
+                const u=message.usage
+                recordAgentUsage(db,owner,sessionId,`cloud:${sessionId}`,{eventId:randomUUID(),provider:message.provider,model:message.model,credentialId:usageCredential(db,owner,message.provider,apiKey),time:Date.now(),input:u.input,output:u.output,cacheRead:u.cacheRead??0,cacheWrite:u.cacheWrite??0,costUsd:u.cost?.total??null})
+              }catch{/* Telemetry failure must never retry or interrupt inference. */}
+            },
           },
           (delta) => {
             accumulated += delta
@@ -375,12 +385,22 @@ function buildConversationFromHistory(
       continue
     }
     const mp = partsByMessage.get(m.id) ?? []
-    const text = mp
-      .filter((p) => p.type === 'text')
-      .map((p) => (p.payload.text as string | undefined) ?? '')
-      .join('')
-    if (!text) continue
-    out.push({ role: m.role, content: text })
+    if (m.role === 'user' && mp.some(p => p.type === 'file')) {
+      const content: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = []
+      for (const p of mp) {
+        if (p.type === 'text') content.push({ type: 'text', text: String(p.payload.text ?? '') })
+        else if (p.type === 'file') {
+          const { name, mimeType, data } = p.payload
+          if (typeof data !== 'string') continue
+          if (['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(String(mimeType))) content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${data}` } })
+          else content.push({ type: 'text', text: `[User attachment: ${String(name)}]\n${mimeType === 'text/plain' ? Buffer.from(data, 'base64').toString('utf8').slice(0, 100_000) + (Number(p.payload.size) > 100_000 ? '\n[Attachment truncated to 100,000 characters]' : '') : '[Binary attachment saved in the conversation. This cloud agent cannot inspect its contents; do not claim to have read it.]'}` })
+        }
+      }
+      out.push({ role: m.role, content })
+    } else {
+      const text = mp.filter(p => p.type === 'text').map(p => String(p.payload.text ?? '')).join('')
+      if (text) out.push({ role: m.role, content: text })
+    }
   }
   return out
 }

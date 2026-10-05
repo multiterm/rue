@@ -1,3 +1,4 @@
+import type {ProjectAuthority} from './project-authority.js'
 import type { Database } from 'better-sqlite3'
 import type { Config } from '../config/index.js'
 import type { Bus } from '../bus/index.js'
@@ -18,11 +19,14 @@ export interface AuthPrincipal {
 
 export interface ServerContext {
   db: Database
+  pushTransport?:import('./web-push.js').PushTransport
   /** Drizzle ORM facade over the same SQLite connection used by legacy stores. */
   orm?: RueDatabase
   config: Config
   bus: Bus
   activeRuns?: Map<string, number>
+  terminalSocketEnabled?: boolean
+  projectAuthority?:ProjectAuthority
 }
 
 declare module 'hono' {

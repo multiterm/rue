@@ -1,0 +1,13 @@
+**
+!packages/
+!packages/apps/
+!packages/apps/worker/
+!packages/apps/worker/src/
+!packages/apps/worker/src/*.ts
+!packages/libs/
+!packages/libs/sdk/
+!packages/libs/sdk/src/
+!packages/libs/sdk/src/filesystem.ts
+**/.worktrees/**
+**/node_modules/**
+**/dist/**

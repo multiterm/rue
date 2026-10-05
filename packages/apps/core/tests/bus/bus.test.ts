@@ -1,3 +1,3 @@
 import {describe,expect,it} from 'vitest'
 import {Bus} from '../../src/bus/index.js'
-describe('Bus replay',()=>{it('assigns ordered event ids and replays after a cursor',()=>{const bus=new Bus();const first=bus.publish('one',{});const second=bus.publish('two',{});expect(second.id).toBe(first.id+1);expect(bus.historySince(first.id)).toEqual([second])})})
+describe('Bus replay',()=>{it('bounds retained transcript bytes as well as event count',()=>{const bus=new Bus();for(let i=0;i<6;i++)bus.publish('part.updated',{text:'x'.repeat(2*1024*1024)});expect(bus.historySince(0).length).toBeLessThan(4);expect(bus.historySince(0).at(-1)?.id).toBe(6)});it('assigns ordered event ids and replays after a cursor',()=>{const bus=new Bus();const first=bus.publish('one',{});const second=bus.publish('two',{});expect(second.id).toBe(first.id+1);expect(bus.historySince(first.id)).toEqual([second])})})

@@ -1,7 +1,7 @@
 import type { RueClientOptions, RueEvent } from './index.js'
 import { RueApiError } from './errors.js'
 
-interface StreamOptions { retryMs?: number; maxRetryMs?: number }
+interface StreamOptions { retryMs?: number; maxRetryMs?: number; idleTimeoutMs?: number }
 
 function retryDelay(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
@@ -25,7 +25,7 @@ function parseEvent(block: string): { cursor?: string; event?: RueEvent } {
   return { cursor }
 }
 
-async function* connection(response: Response, onCursor: (cursor: string) => void, signal?: AbortSignal): AsyncGenerator<RueEvent> {
+async function* connection(response: Response, onCursor: (cursor: string) => void, signal?: AbortSignal, idleTimeoutMs = 75_000): AsyncGenerator<RueEvent> {
   const reader = response.body!.getReader()
   const decoder = new TextDecoder()
   const abort = () => { void reader.cancel().catch(() => undefined) }
@@ -37,7 +37,12 @@ async function* connection(response: Response, onCursor: (cursor: string) => voi
     // cannot prove completeness after a server restart or a full replay buffer.
     yield { id: 0, type: 'sync.connected', time: Date.now(), payload: {} }
     for (;;) {
-      const { done, value } = await reader.read()
+      // The API pings every 25 seconds. A silently stalled stream must stop
+      // advertising live sync; otherwise browser fallback reads stay disabled.
+      const deadline = setTimeout(abort, idleTimeoutMs)
+      let chunk: ReadableStreamReadResult<Uint8Array>
+      try { chunk = await reader.read() } finally { clearTimeout(deadline) }
+      const { done, value } = chunk
       if (done) return
       buffer += decoder.decode(value, { stream: true })
       let separator: RegExpExecArray | null
@@ -70,6 +75,7 @@ export async function* createRueEventStream(
   let cursor = ''
   let delay = retryMs
   while (!signal?.aborted) {
+    let fatal: unknown
     try {
       const supplied = typeof token === 'function' ? await token() : token
       const headers = new Headers({ accept: 'text/event-stream' })
@@ -77,15 +83,18 @@ export async function* createRueEventStream(
       if (cursor) headers.set('last-event-id', cursor)
       const response = await requestFetch(url, { headers, signal })
       if (!response.ok || !response.body) throw new RueApiError(response.status, await response.text())
-      for await (const event of connection(response, (value) => { cursor = value }, signal)) {
+      for await (const event of connection(response, (value) => { cursor = value }, signal, options.idleTimeoutMs)) {
         yield event
         if (event.type !== 'sync.connected') delay = retryMs
       }
     } catch (error) {
       if (signal?.aborted) return
       const retryable = error instanceof TypeError || (error instanceof RueApiError && (error.status === 429 || error.status >= 500))
-      if (!retryable) throw error
+      if (!retryable) fatal = error
     }
+    if (signal?.aborted) return
+    yield { id: 0, type: 'sync.disconnected', time: Date.now(), payload: {} }
+    if (fatal) throw fatal
     await retryDelay(delay, signal)
     delay = Math.min(maxRetryMs, delay * 2)
   }

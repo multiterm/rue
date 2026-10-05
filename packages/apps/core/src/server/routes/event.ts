@@ -17,17 +17,18 @@ export function eventRoutes(): Hono<{ Variables: { ctx: ServerContext } }> {
     const cursor = Number(c.req.header('last-event-id') ?? 0)
     const replay = Number.isSafeInteger(cursor) && cursor > 0 ? c.var.ctx.bus.historySince(cursor) : []
     let writes = Promise.resolve()
-    let queued = 0
+    let queued = 0, queuedBytes = 0
     let failed = false
     const send = (event: BusEvent) => {
       if (!visible(event) || failed) return
       // Bound per-client buffering. Reconnecting clients reconcile persisted state.
-      if (queued >= 1024) { failed = true; unsubscribe(); void stream.close(); return }
-      queued++
+      const data=JSON.stringify(event),bytes=Buffer.byteLength(data)
+      if (queued >= 1024 || queuedBytes+bytes>2*1024*1024) { failed = true; unsubscribe(); void stream.close(); return }
+      queued++;queuedBytes+=bytes
       writes = writes.then(() => stream.writeSSE({
         id: String(event.id), event: event.type,
-        data: JSON.stringify(event),
-      })).finally(() => { queued-- })
+        data,
+      })).finally(() => { queued--;queuedBytes-=bytes })
       void writes.catch(() => { failed = true; unsubscribe(); void stream.close() })
     }
     // No await between taking the replay snapshot and subscribing: live events

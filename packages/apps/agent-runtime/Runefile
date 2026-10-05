@@ -1,0 +1,4 @@
+build: bun build src/guardian.ts src/runner.ts --target=node --packages=external --outdir=dist
+typecheck: tsc -p tsconfig.json --noEmit
+lint: tsc -p tsconfig.json --noEmit
+test: vitest run

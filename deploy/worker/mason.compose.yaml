@@ -1,0 +1,41 @@
+# Start through scripts/deployment/mason-worker.mjs, never the active Docker context.
+# Colima's dedicated rue profile bounds application file sharing to MOTHERSHIP.
+name: rue-mason
+services:
+  worker:
+    image: rue-worker:mason
+    pull_policy: never
+    init: true
+    user: "0:0"
+    read_only: true
+    restart: unless-stopped
+    stop_grace_period: 20s
+    environment:
+      RUE_WORKER_STATE_DIR: /var/lib/rue-worker
+      RUE_WORKER_DOCKER_SOCKET: /var/run/docker.sock
+    volumes:
+      - private-state:/var/lib/rue-worker
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        bind:
+          create_host_path: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+# Enrollment is transferred over stdin to this VM-only volume, not a host bind.
+# Agent containers must never receive this volume or the Docker socket.
+volumes:
+  private-state:
+    external: true
+    name: rue-mason-worker-private

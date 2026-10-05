@@ -4,7 +4,7 @@
 @theme inline {
   --font-display:var(--rue-font-display); --font-sans:var(--rue-font-sans); --font-mono:var(--rue-font-mono);
   --color-background:var(--rue-bg); --color-background-2:var(--rue-bg-2); --color-surface:var(--rue-surface); --color-surface-2:var(--rue-surface-2); --color-elevated:var(--rue-elevated);
-  --color-border:var(--rue-border); --color-border-strong:var(--rue-border-strong); --color-foreground:var(--rue-text); --color-muted:var(--rue-muted); --color-subtle:var(--rue-subtle);
+  --color-border:var(--rue-border); --color-border-strong:var(--rue-border-strong); --color-separator:var(--rue-separator); --color-foreground:var(--rue-text); --color-muted:var(--rue-muted); --color-subtle:var(--rue-subtle);
   --color-primary:var(--rue-primary); --color-primary-foreground:var(--rue-primary-contrast); --color-secondary:var(--rue-secondary); --color-accent:var(--rue-accent); --color-focus:var(--rue-focus);
   --color-inverse:var(--rue-inverse); --color-inverse-foreground:var(--rue-inverse-foreground); --color-overlay:var(--rue-overlay);
   --color-danger:var(--rue-danger); --color-danger-foreground:var(--rue-danger-contrast); --color-warning:var(--rue-warning); --color-warning-foreground:var(--rue-warning-contrast); --color-success:var(--rue-success); --color-success-foreground:var(--rue-success-contrast);

@@ -3,8 +3,10 @@ import { spawn } from 'node:child_process'
 import { resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildDevelopmentLibraries } from './build-development-libraries.mjs'
+import { assertDevelopmentSyntax } from './check-development-syntax.mjs'
 
-export async function syncDevelopment(run, root, apiUrl, build = buildDevelopmentLibraries) {
+export async function syncDevelopment(run, root, apiUrl, build = buildDevelopmentLibraries, preflight = assertDevelopmentSyntax) {
+  await preflight(root)
   const common = [root, '--environment', 'development', ...(apiUrl ? ['--api-url', apiUrl] : [])]
   await run(['sandbox', 'sync', ...common, '--checks', 'none'])
   // Source synchronization alone does not refresh installed packages or SDK dist.

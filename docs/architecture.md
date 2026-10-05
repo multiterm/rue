@@ -12,6 +12,7 @@ Rue is one authenticated HTTP core consumed by multiple clients. The current imp
 - `packages/libs/trpc`: internal typed query facade used by browser surfaces.
 - `packages/libs/db`: authoritative Drizzle view of the core SQLite schema. SQL migrations remain in core until migration generation is consolidated.
 - `packages/apps/webapp`: primary authenticated product surface.
+- `packages/apps/worker`: managed-host supervisor executable. The initial release enrolls/monitors hosts; Pi runtime management remains a separate upcoming milestone. Worker wire types are exported by the SDK and imported type-only by core/worker.
 - `packages/apps/desktop`: secure Electron shell around the webapp.
 - `packages/apps/mobile`: Expo Keyname and Rue session client.
 - `packages/apps/tui`: terminal client available through `rue tui`.
@@ -20,6 +21,8 @@ Rue is one authenticated HTTP core consumed by multiple clients. The current imp
 ## Security model
 
 Every remote request is authenticated by Keyname. Verified claims become a request principal. Sessions are owned by `owner_subject`; REST, tRPC, messages, parts, and SSE events are scoped to that owner. Local unauthenticated mode uses the synthetic `local` principal and must remain loopback-only unless a password is configured. Immutable environments require a Keyname audience.
+
+Managed workers are an explicit additional trust boundary: `RUE_MANAGED_WORKERS=true` enables owner-scoped enrollment and an independently authenticated, outbound-only worker WebSocket. Worker secrets are hashed at rest, cannot access account/terminal namespaces, and are fenced by instance/generation leases. The root Compose supervisor's Docker socket is host-administrator authority; agent filesystem access is not implied or enabled by enrollment. See [managed workers](./managed-workers.md) for implemented versus planned capabilities.
 
 ## Delivery model
 

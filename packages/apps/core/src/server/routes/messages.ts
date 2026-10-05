@@ -1,3 +1,4 @@
+import {recordTaskNotification} from '../../storage/notifications.js'
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { randomBytes } from 'node:crypto'
 import { enqueueTerminalPrompt, RelayError } from '../../storage/terminal-relay.js'
@@ -9,11 +10,17 @@ import { appendMessage, appendPart, getSession } from '../../storage/index.js'
 import { getAuthBackend } from '../../auth/index.js'
 import type { ServerContext } from '../context.js'
 
+import { AttachmentError, validateContent, contentSummary, checkAttachmentBudget, appendContent, type MessageContent } from '../../storage/attachments.js'
+
 /* ---------- schemas ---------- */
 
 const SendMessageRequestSchema = z
   .object({
     text: z.string().min(1, 'text must be non-empty').max(100_000),
+    content: z.array(z.discriminatedUnion('type', [
+      z.object({ type: z.literal('text'), text: z.string().max(100_000) }),
+      z.object({ type: z.literal('file'), name: z.string().min(1).max(200), mimeType: z.string().max(100), data: z.string().max(14_000_000) }),
+    ])).min(1).max(32).optional(),
     /** Per-message provider override. */
     provider: z.string().optional(),
     /** Per-message model override. */
@@ -114,16 +121,25 @@ export function messageRoutes(terminalEnabled = false): OpenAPIHono<{ Variables:
       const session = getSession(ctx.db, sessionId, c.get('principal').subject)
       if (!session) return c.json({ error: 'session_not_found' }, 404)
 
+      let content: MessageContent[] | undefined
+      try { content = validateContent(body.content) }
+      catch (error) { return c.json({ error: error instanceof AttachmentError ? error.message : 'Invalid attachments' }, 400) }
+      const text = content ? contentSummary(content) : body.text
+
       // Fail closed even if mutable session metadata has been edited. A linked
       // terminal must never fall back to the owner's configured cloud provider.
       const terminal = ctx.db.prepare('SELECT id FROM terminal_connections WHERE session_id=?').get(sessionId)
       if (terminal || session.agent === 'pi-terminal' || session.meta.terminalConnectionId) {
         if (!terminalEnabled || !body.requestId) return c.json({ error: 'terminal_transport_unavailable' }, 503)
         try {
-          const queued = enqueueTerminalPrompt(ctx.db, c.get('principal').subject, sessionId, body.requestId, body.text)
+          const queued = enqueueTerminalPrompt(ctx.db, c.get('principal').subject, sessionId, body.requestId, text, Date.now(), content)
           ctx.bus.publish('message.created', { sessionId, messageId: queued.user_message_id })
+          ctx.bus.publish('terminal.command.queued', { sessionId })
           return c.json({ userMessageId: queued.user_message_id, assistantMessageId: queued.assistant_message_id, stopReason: queued.status }, 200)
-        } catch (error) { return c.json({ error: error instanceof RelayError ? error.code : 'terminal_transport_unavailable' }, 503) }
+        } catch (error) {
+          if (error instanceof AttachmentError) return c.json({ error: error.message }, 400)
+          return c.json({ error: error instanceof RelayError ? error.code : 'terminal_transport_unavailable' }, 503)
+        }
       }
 
       const settings = agentSettings(ctx.db, c.get('principal').subject)
@@ -142,6 +158,8 @@ export function messageRoutes(terminalEnabled = false): OpenAPIHono<{ Variables:
         return c.json({ error: `no_credentials_for:${providerId}` }, 400)
       }
 
+      try { checkAttachmentBudget(ctx.db, c.get('principal').subject, content) }
+      catch (error) { return c.json({ error: error instanceof AttachmentError ? error.message : 'Invalid attachments' }, 400) }
       const releaseRun = reserveRun(ctx, c.get('principal').subject)
       if (!releaseRun) return c.json({ error: 'too_many_active_runs' }, 429)
 
@@ -152,7 +170,8 @@ export function messageRoutes(terminalEnabled = false): OpenAPIHono<{ Variables:
         sessionId,
         role: 'user',
       })
-      appendPart(ctx.db, {
+      if (content) appendContent(ctx.db, sessionId, userMessageId, content)
+      else appendPart(ctx.db, {
         id: generateId('txt'),
         sessionId,
         messageId: userMessageId,
@@ -187,6 +206,9 @@ export function messageRoutes(terminalEnabled = false): OpenAPIHono<{ Variables:
         systemPrompt: configured ? [settings.systemPrompt, typeof session.meta.description === 'string' ? session.meta.description : '', body.systemPrompt ?? ''].filter(Boolean).join('\n\n') : body.systemPrompt ?? ctx.config.systemPrompt,
         tokenBudget: ctx.config.tokenBudget,
         maxTurns: ctx.config.maxTurns,
+      }).then(result=>{
+        ctx.db.transaction(()=>recordTaskNotification(ctx.db,sessionId,`cloud:${assistantMessageId}`,result.stopReason==='completed'?'task_completed':'task_failed')).immediate()
+        return result
       }).finally(releaseRun)
 
       if (body.wait) {

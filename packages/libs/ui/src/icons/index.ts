@@ -1,0 +1,15 @@
+// Selected icons from @honeycluster/icons-base 0.0.10, as used by Portal.
+// Vendored source avoids its extensionless ESM declaration barrel. See LICENSE.
+export {default as MenuSettingsIcon} from './general-settings-01.js'
+export {default as MenuStatusIcon} from './general-activity.js'
+export {default as MenuActionsIcon} from './general-zap.js'
+export {default as MenuWorkspaceIcon} from './files-folder.js'
+export {default as MenuPermissionsIcon} from './security-shield-01.js'
+export {default as MenuConnectionIcon} from './general-link-01.js'
+export {default as MenuRoutinesIcon} from './time-clock.js'
+export {default as MenuRuntimeIcon} from './development-terminal.js'
+export {default as MenuRefreshIcon} from './arrows-refresh-cw-01.js'
+export {default as MenuSyncIcon} from './communication-message-check-circle.js'
+export {default as MenuClearIcon} from './communication-message-x-circle.js'
+export {default as MenuDeleteIcon} from './general-trash-01.js'
+export {default as MenuPlusIcon} from './general-plus.js'

@@ -12,7 +12,10 @@ export function agentSettingsRoutes() {
     if (!parsed.success || !piModelIds().includes(parsed.data.model)) return c.json({ error: 'invalid_agent_settings' }, 400)
     if (parsed.data.expectedOwnerSubject !== c.get('principal').subject) return c.json({ error: 'agent_settings_identity_changed' }, 409)
     try {
-      return c.json({ ownerSubject: c.get('principal').subject, ...saveAgentSettings(c.var.ctx.db, c.get('principal').subject, parsed.data), models: piModelIds() })
+      const ownerSubject = c.get('principal').subject
+      const settings = saveAgentSettings(c.var.ctx.db, ownerSubject, parsed.data)
+      c.var.ctx.bus.publish('provider-key.updated', { ownerSubject })
+      return c.json({ ownerSubject, ...settings, models: piModelIds() })
     } catch (error) {
       if (error instanceof AgentSettingsError) return c.json({ error: error.code }, error.code === 'agent_settings_conflict' ? 409 : 503)
       return c.json({ error: 'agent_settings_unavailable' }, 503)
