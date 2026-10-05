@@ -9,6 +9,14 @@
 !docker/
 !docker/images/
 !docker/images/Dockerfile.sandblocks-e2e
+!quality/
+!quality/app-contract.ts
+!quality/app-playwright.ts
+!quality/api.app.playwright.ts
+!quality/webapp.app.playwright.ts
+!quality/site.app.playwright.ts
+!quality/docs.app.playwright.ts
+!quality/playwright.config.ts
 !packages/
 !packages/apps/
 !packages/apps/worker/

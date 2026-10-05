@@ -9,6 +9,8 @@ Both Rue's `sync-development` runner and watcher now parse runtime TypeScript/Ja
 
 The Rue watcher was restarted on 2026-10-01 to load the guard and completed a synchronization. Its old process did not exit on SIGTERM; after confirming its identity, no child process and no active Rue workspace operation, it was terminated and its stale lock preserved rather than blindly deleted. The other application's watcher was not touched.
 
+`sync-development` also verifies Sandblocks' recorded quality state after the CLI returns. A zero CLI exit code alone is insufficient: required checks must pass for the current source revision. The root Docker allowlist includes only the seven browser-check source/config files needed by `Dockerfile.sandblocks-e2e`; it continues to exclude deployment state, credentials and nested worktrees.
+
 Sync is one-way, local to the bound mutable development sandbox. It includes
 uncommitted source files, but never promotes preview or production. Release
 candidates must come from committed source on `pre` or `prod`.

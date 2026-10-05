@@ -1,17 +1,39 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
+import { readFile } from 'node:fs/promises'
 import { resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildDevelopmentLibraries } from './build-development-libraries.mjs'
 import { assertDevelopmentSyntax } from './check-development-syntax.mjs'
 
-export async function syncDevelopment(run, root, apiUrl, build = buildDevelopmentLibraries, preflight = assertDevelopmentSyntax) {
+export function assertDevelopmentQualityState(state) {
+  const quality = state?.quality
+  if (state?.environment !== 'development' || state.runtimeMode !== 'development' ||
+      typeof state.sourceRevision !== 'string' || !state.sourceRevision ||
+      quality?.sourceRevision !== state.sourceRevision || quality.status !== 'passed' ||
+      !Array.isArray(quality.checks) || !quality.checks.length ||
+      quality.checks.some(check => !check || check.sourceRevision !== state.sourceRevision ||
+        (check.required !== false && !['passed', 'reused'].includes(check.status)))) {
+    throw new Error('Development checks did not pass for the current source revision')
+  }
+}
+
+async function assertDevelopmentQuality(root) {
+  let state
+  try { state = JSON.parse(await readFile(join(root, '.sandblocks/sandbox-development.json'), 'utf8')) }
+  catch { throw new Error('Development quality state is missing or invalid') }
+  assertDevelopmentQualityState(state)
+}
+
+export async function syncDevelopment(run, root, apiUrl, build = buildDevelopmentLibraries, preflight = assertDevelopmentSyntax, verify = assertDevelopmentQuality) {
   await preflight(root)
   const common = [root, '--environment', 'development', ...(apiUrl ? ['--api-url', apiUrl] : [])]
   await run(['sandbox', 'sync', ...common, '--checks', 'none'])
   // Source synchronization alone does not refresh installed packages or SDK dist.
   await build(root, apiUrl)
   await run(['sandbox', 'check', ...common, '--profile', 'full'])
+  // The CLI can exit zero even when its recorded browser checks failed.
+  await verify(root)
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
