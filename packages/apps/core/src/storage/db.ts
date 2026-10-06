@@ -14,6 +14,7 @@ import { MIGRATIONS } from './schema.js'
  * Pass an alternate `path` for tests (e.g. `:memory:` or a tempfile).
  */
 export function openDatabase(path: string = Paths.db): Database.Database {
+  if ((process.env.RUE_STORAGE_BACKEND && process.env.RUE_STORAGE_BACKEND !== 'sqlite') || process.env.RUE_DATABASE_URL || process.env.DATABASE_URL) throw new Error('rue_sqlite_disabled_for_configured_backend')
   if (path !== ':memory:') {
     mkdirSync(dirname(path), { recursive: true })
   }

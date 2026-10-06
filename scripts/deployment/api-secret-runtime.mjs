@@ -9,6 +9,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url'
 import {spawn,spawnSync} from 'node:child_process'
 
 export const pushNames=['RUE_PUSH_PRIVATE_KEY','RUE_PUSH_PUBLIC_KEY','RUE_PUSH_SUBJECT']
+export const databaseNames=['RUE_STORAGE_BACKEND','RUE_DATABASE_URL','RUE_SETTINGS_ENCRYPTION_KEY']
 export function runtimeSelection(env){
  if(!env.RUE_SECRET_SOURCE)return null
  if(env.RUE_SECRET_SOURCE!=='dotlocker')throw Error('Unsupported API secret source')
@@ -27,10 +28,11 @@ export async function decodePushRuntime(text,key,existing={},codec){
   const lines=codec.parseEnv(text),record=codec.toRecord(lines)
   if(lines.filter(line=>line.type==='kv').length!==Object.keys(record).length||lines.some(line=>line.type==='raw'&&line.raw.trim()&&!line.raw.trimStart().startsWith('#')))throw Error()
   // Reject unknown variables (including loader options, public mirrors and key files).
-  const allowed=new Set([...pushNames,'ENVX_PUBLIC_KEY','ENVX_PUBLIC_KEY_DEV','ENVX_PUBLIC_KEY_PREVIEW','ENVX_PUBLIC_KEY_PROD'])
+  const allowed=new Set([...pushNames,...databaseNames,'ENVX_PUBLIC_KEY','ENVX_PUBLIC_KEY_DEV','ENVX_PUBLIC_KEY_PREVIEW','ENVX_PUBLIC_KEY_PROD'])
   if(Object.keys(record).some(name=>!allowed.has(name)))throw Error()
   const result={}
-  for(const name of pushNames){
+  const hasDatabase=databaseNames.some(name=>record[name]!==undefined)
+  for(const name of [...pushNames,...(hasDatabase?databaseNames:[])]){
    if(!codec.isEncrypted(record[name]??''))throw Error()
    const value=codec.decryptValueAsymmetric(record[name],key)
    if(!value||/[\x00-\x20\x7f]/.test(value)||(existing[name]!==undefined&&existing[name]!==value))throw Error()
@@ -42,6 +44,10 @@ export async function decodePushRuntime(text,key,existing={},codec){
   if(!pair.getPublicKey().equals(publicKey))throw Error()
   const subject=new URL(result.RUE_PUSH_SUBJECT)
   if(!['mailto:','https:'].includes(subject.protocol)||!subject.pathname||subject.username||subject.password)throw Error()
+  if(hasDatabase){
+   const url=new URL(result.RUE_DATABASE_URL)
+   if(result.RUE_STORAGE_BACKEND!=='postgres'||!['postgres:','postgresql:'].includes(url.protocol)||!url.hostname||!url.username||!url.password||!url.pathname.slice(1)||!/^[A-Za-z0-9+/]{43}=$/.test(result.RUE_SETTINGS_ENCRYPTION_KEY)||Buffer.from(result.RUE_SETTINGS_ENCRYPTION_KEY,'base64').length!==32)throw Error()
+  }
   return result
  }catch{throw Error('Encrypted API push configuration is invalid, incomplete, or conflicts with existing keys; values withheld')}
 }

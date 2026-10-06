@@ -1,5 +1,5 @@
 export interface SessionRecord {
- id:string;title:string;agent:string|null;provider:string|null;model:string|null;directory:string|null;scopes:string[];parentId:string|null;ownerSubject:string;createdAt:number;updatedAt:number;meta:Record<string,unknown>
+ id:string;title:string;agent:string|null;provider:string|null;model:string|null;directory:string|null;scopes:string[];parentId:string|null;ownerSubject:string;terminalConnectionId?:string|null;createdAt:number;updatedAt:number;meta:Record<string,unknown>
 }
 export interface SessionCursor {updatedAt:number;id:string}
 export interface SessionPageInput {limit?:number;cursor?:SessionCursor}

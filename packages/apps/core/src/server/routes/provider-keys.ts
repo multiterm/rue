@@ -1,16 +1,15 @@
-import {usageCredential} from '../../storage/agent-usage.js'
-import {reportedProviders} from '../../storage/reported-providers.js'
+import {sessionServices} from '../session-services.js'
 import { OpenAPIHono, z } from '@hono/zod-openapi'
 import {providerCatalog,managedProviderCatalog,credentialProviders,supportedProviderModel} from '../../provider/catalog.js'
 import { bodyLimit } from 'hono/body-limit'
 import type { ServerContext } from '../context.js'
-import { delegatedProviderKey, delegatedProviderKeyAvailable, grantProviderKey, providerKeys, ProviderKeyError, providerSchema, saveProviderKey, targetSchema } from '../../storage/provider-keys.js'
+import { ProviderKeyError, providerSchema, targetSchema } from '../../storage/provider-keys.js'
 import { AgentSettingsError } from '../../storage/agent-settings.js'
-import { validateRelaySocket, RelayError } from '../../storage/terminal-relay.js'
+import { RelayError } from '../../storage/terminal-relay.js'
 import { TerminalPairingError } from '../../storage/terminal-pairing.js'
-import { validateWorker, WorkerError } from '../../storage/workers.js'
+import { WorkerError } from '../../storage/workers.js'
 
-import {delegatedOAuthAccess,delegatedOAuthAvailable,providerOAuthMetadata,OAuthVaultError,type OAuthRefresh} from '../../storage/provider-oauth.js'
+import {OAuthVaultError,type OAuthRefresh} from '../../storage/provider-oauth.js'
 import {refreshCodexOAuth} from '../../provider/codex-oauth.js'
 function routes(path = '*') {
   const app = new OpenAPIHono<{ Variables: { ctx: ServerContext } }>()
@@ -27,8 +26,8 @@ function routes(path = '*') {
 const identity = z.object({ expectedOwnerSubject: z.string().min(1).max(512), expectedRevision: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER) })
 export function providerKeyAccountRoutes() {
   const app = routes()
-  app.get('/catalog',c=>c.json({providers:providerCatalog,managedProviders:managedProviderCatalog,credentialProviders:[...new Map([...credentialProviders,...reportedProviders(c.var.ctx.db,c.get('principal').subject)].map(p=>[p.id,p])).values()]}))
-  app.get('/', c => c.json(providerKeys(c.var.ctx.db, c.get('principal').subject)))
+  app.get('/catalog',async c=>c.json({providers:providerCatalog,managedProviders:managedProviderCatalog,credentialProviders:[...new Map([...credentialProviders,...await sessionServices(c.var.ctx).credentials.reported(c.get('principal').subject)].map(p=>[p.id,p])).values()]}))
+  app.get('/', async c => c.json(await sessionServices(c.var.ctx).credentials.keys.list(c.get('principal').subject)))
   app.put('/:provider', async c => {
     const provider = providerSchema.safeParse(c.req.param('provider'))
     const input = identity.extend({ apiKey: z.string().trim().min(1).max(4096).nullable(),model:z.string().min(1).max(128).optional() }).strict().safeParse(await c.req.json().catch(() => null))
@@ -36,7 +35,7 @@ export function providerKeyAccountRoutes() {
     const owner = c.get('principal').subject
     if (input.data.expectedOwnerSubject !== owner) return c.json({ error: 'key_owner_changed' }, 409)
     if(input.data.model&&!supportedProviderModel(provider.data,input.data.model))return c.json({error:'provider_model_unavailable'},400)
-    const result = saveProviderKey(c.var.ctx.db, owner, provider.data, input.data.expectedRevision, input.data.apiKey,input.data.model)
+    const result = await sessionServices(c.var.ctx).credentials.keys.save(owner, provider.data, input.data.expectedRevision, input.data.apiKey,input.data.model)
     c.var.ctx.bus.publish('provider-key.updated', { ownerSubject: owner })
     return c.json(result)
   })
@@ -46,7 +45,7 @@ export function providerKeyAccountRoutes() {
     if (!provider.success || !input.success) return c.json({ error: 'invalid_key_grant' }, 400)
     const owner = c.get('principal').subject
     if (input.data.expectedOwnerSubject !== owner) return c.json({ error: 'key_owner_changed' }, 409)
-    const result = grantProviderKey(c.var.ctx.db, owner, provider.data, input.data.expectedRevision, input.data.target, input.data.enabled)
+    const result = await sessionServices(c.var.ctx).credentials.keys.grant(owner, provider.data, input.data.expectedRevision, input.data.target, input.data.enabled)
     c.var.ctx.bus.publish('provider-key.updated', { ownerSubject: owner })
     return c.json(result)
   })
@@ -61,21 +60,17 @@ export function providerKeyDeliveryRoutes(kind: 'terminal' | 'worker',refresh:OA
     const input = schema.extend({ availability: z.literal(true).optional() }).safeParse(await c.req.json().catch(() => null))
     if (!provider.success || !id.success || !input.success) return c.json({ error: 'invalid_key_request' }, 400)
     const header = c.req.header('authorization') ?? '', token = header.startsWith('Bearer ') ? header.slice(7) : ''
-    const owner = kind === 'terminal'
-      ? validateRelaySocket(c.var.ctx.db, token, id.data, input.data.instance).ownerSubject
-      : validateWorker(c.var.ctx.db, id.data, token, input.data.instance, 'generation' in input.data && typeof input.data.generation === 'number' ? input.data.generation : NaN).owner_subject
+    const store=sessionServices(c.var.ctx).credentials
+    const auth={id:id.data,token,instance:input.data.instance,generation:'generation' in input.data&&typeof input.data.generation==='number'?input.data.generation:undefined}
+    const owner=await store.transportOwner(kind,auth)
     if(provider.data==='openai-codex'){
       if(kind!=='terminal')return c.json({error:'oauth_terminal_only'},403)
-      const current=()=>{try{return validateRelaySocket(c.var.ctx.db,token,id.data,input.data.instance).ownerSubject===owner}catch{return false}}
-      if(input.data.availability)return c.json({provider:provider.data,granted:delegatedOAuthAvailable(c.var.ctx.db,owner,id.data,current)})
-      const before=providerOAuthMetadata(c.var.ctx.db,owner)
-      try{return c.json(await delegatedOAuthAccess(c.var.ctx.db,owner,id.data,current,refresh))}
-      finally{const after=providerOAuthMetadata(c.var.ctx.db,owner);if(after.state!==before.state||after.expiresAt!==before.expiresAt||after.state==='reauthorize')c.var.ctx.bus.publish('provider-key.updated',{ownerSubject:owner})}
+      if(input.data.availability)return c.json({provider:provider.data,granted:await store.oauthAvailable(auth,owner)})
+      const before=await store.oauth.metadata(owner)
+      try{return c.json(await store.oauthAccess(auth,owner,refresh))}
+      finally{const after=await store.oauth.metadata(owner);if(after.state!==before.state||after.expiresAt!==before.expiresAt||after.state==='reauthorize')c.var.ctx.bus.publish('provider-key.updated',{ownerSubject:owner})}
     }
-    const target = { type: kind, id: id.data }
-    if (input.data.availability) return c.json({ provider: provider.data, granted: delegatedProviderKeyAvailable(c.var.ctx.db, owner, provider.data, target) })
-    const delivered=delegatedProviderKey(c.var.ctx.db, owner, provider.data, target)
-    return c.json({...delivered,credentialId:usageCredential(c.var.ctx.db,owner,provider.data,delivered.apiKey)})
+    return c.json(await store.deliver(kind,auth,owner,provider.data,Boolean(input.data.availability)))
   })
   return app
 }

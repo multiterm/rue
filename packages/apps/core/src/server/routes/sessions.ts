@@ -1,17 +1,7 @@
-import {agentUsage} from '../../storage/agent-usage.js'
-import {clearSessionHistory,HistoryError} from '../../storage/history.js'
-import { reconcileTerminalSession } from '../../storage/terminal-relay.js'
+import {HistoryError,ConversationError} from '@multiterm/rue-db/postgres'
+import {sessionServices} from '../session-services.js'
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { randomBytes } from 'node:crypto'
-import {
-  createSession,
-  deleteSession,
-  getSession,
-  listMessages,
-  listSessionParts,
-  listSessions,
-  updateSession,
-} from '../../storage/index.js'
 import type { ServerContext } from '../context.js'
 
 /* ---------- shared schemas ---------- */
@@ -91,32 +81,34 @@ function generateId(prefix: string): string {
 export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext } }> {
   const app = new OpenAPIHono<{ Variables: { ctx: ServerContext } }>()
 
-  app.get('/session/:id/usage',c=>{
+  app.get('/session/:id/usage',async c=>{
     const owner=c.get('principal').subject,id=c.req.param('id')
-    if(!getSession(c.var.ctx.db,id,owner))return c.json({error:'session_not_found'},404)
+    if(!await sessionServices(c.var.ctx).conversations.get(owner,id))return c.json({error:'session_not_found'},404)
     const days=Number(c.req.query('days')??30)
     if(![7,30,90].includes(days))return c.json({error:'invalid_usage_range'},400)
     c.header('cache-control','private, no-store')
-    return c.json(agentUsage(c.var.ctx.db,owner,id,days))
+    return c.json(await sessionServices(c.var.ctx).usage.report(owner,id,days))
   })
 
   app.delete('/session/:id/history',async c=>{
     const owner=c.get('principal').subject,id=c.req.param('id')
-    if(!getSession(c.var.ctx.db,id,owner))return c.json({error:'session_not_found'},404)
+    if(!await sessionServices(c.var.ctx).conversations.get(owner,id))return c.json({error:'session_not_found'},404)
     const input=z.object({expectedLastMessageId:z.string().min(1).max(128).nullable()}).strict().safeParse(await c.req.json().catch(()=>null))
     if(!input.success)return c.json({error:'invalid_history_request'},400)
-    if((c.var.ctx.activeRuns?.get(owner)??0)>0)return c.json({error:'history_run_active'},409)
-    try{const result=clearSessionHistory(c.var.ctx.db,id,owner,input.data.expectedLastMessageId);c.var.ctx.bus.publish('message.history-cleared',{ownerSubject:owner,sessionId:id});c.var.ctx.bus.publish('session.updated',{ownerSubject:owner,sessionId:id});return c.json(result)}catch(error){if(error instanceof HistoryError)return c.json({error:error.code},error.status);throw error}
+    const resetting=c.var.ctx.historyResets??=new Set<string>()
+    if((c.var.ctx.activeRuns?.get(owner)??0)>0||resetting.has(owner))return c.json({error:'history_run_active'},409)
+    resetting.add(owner)
+    try{const result=await sessionServices(c.var.ctx).history.clear(owner,id,input.data.expectedLastMessageId);c.var.ctx.bus.publish('message.history-cleared',{ownerSubject:owner,sessionId:id});c.var.ctx.bus.publish('session.updated',{ownerSubject:owner,sessionId:id});return c.json(result)}catch(error){if(error instanceof HistoryError)return c.json({error:error.code},error.status);throw error}finally{resetting.delete(owner)}
   })
 
   // Binary content is authenticated separately; transcript polling only carries metadata.
-  app.get('/session/:id/attachments/:part', c => {
-    const { db } = c.var.ctx
-    const id = c.req.param('id')
-    if (!getSession(db, id, c.get('principal').subject)) return c.json({ error: 'session_not_found' }, 404)
-    const row = db.prepare("SELECT payload FROM parts WHERE id=? AND session_id=? AND type='file'").get(c.req.param('part'), id) as { payload: string } | undefined
-    if (!row) return c.json({ error: 'attachment_not_found' }, 404)
-    const file = JSON.parse(row.payload)
+  app.get('/session/:id/attachments/:part', async c => {
+    const store = sessionServices(c.var.ctx).conversations
+    const id = c.req.param('id'),owner=c.get('principal').subject
+    if (!await store.get(owner,id)) return c.json({ error: 'session_not_found' }, 404)
+    const row = await store.getPart(owner,c.req.param('part'))
+    if (!row||row.sessionId!==id||row.type!=='file') return c.json({ error: 'attachment_not_found' }, 404)
+    const file = row.payload
     if (typeof file.data !== 'string') return c.json({ error: 'attachment_not_found' }, 404)
     c.header('Content-Type', 'application/octet-stream')
     c.header('Content-Disposition', 'attachment')
@@ -138,7 +130,7 @@ export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
         },
       },
     }),
-    (c) => c.json(listSessions(c.var.ctx.db, 100, c.get('principal').subject), 200),
+    async (c) => c.json((await sessionServices(c.var.ctx).conversations.list(c.get('principal').subject,{limit:100})).items, 200),
   )
 
   // Create
@@ -160,9 +152,9 @@ export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
         },
       },
     }),
-    (c) => {
+    async (c) => {
       const body = c.req.valid('json')
-      const row = createSession(c.var.ctx.db, {
+      const row = await sessionServices(c.var.ctx).conversations.create(c.get('principal').subject, {
         id: generateId('ses'),
         title: body.title,
         agent: body.agent,
@@ -171,10 +163,9 @@ export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
         directory: body.directory,
         scopes: body.scopes,
         parentId: body.parentId,
-        ownerSubject: c.get('principal').subject,
         meta: body.meta,
       })
-      c.var.ctx.bus.publish('session.created', { sessionId: row.id })
+      c.var.ctx.bus.publish('session.created', { ownerSubject:c.get('principal').subject,sessionId: row.id })
       return c.json(row, 200)
     },
   )
@@ -197,9 +188,9 @@ export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
         },
       },
     }),
-    (c) => {
+    async (c) => {
       const { id } = c.req.valid('param')
-      const row = getSession(c.var.ctx.db, id, c.get('principal').subject)
+      const row = await sessionServices(c.var.ctx).conversations.get(c.get('principal').subject,id)
       if (!row) return c.json({ error: 'session_not_found' }, 404)
       return c.json(row, 200)
     },
@@ -229,12 +220,12 @@ export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
         },
       },
     }),
-    (c) => {
+    async (c) => {
       const { id } = c.req.valid('param')
       const body = c.req.valid('json')
-      const row = updateSession(c.var.ctx.db, id, body, c.get('principal').subject)
+      const row = await sessionServices(c.var.ctx).conversations.update(c.get('principal').subject,id,body)
       if (!row) return c.json({ error: 'session_not_found' }, 404)
-      c.var.ctx.bus.publish('session.updated', { sessionId: row.id })
+      c.var.ctx.bus.publish('session.updated', { ownerSubject:c.get('principal').subject,sessionId: row.id })
       return c.json(row, 200)
     },
   )
@@ -254,13 +245,16 @@ export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
         409: { description: 'Destroy managed runtime first', content: { 'application/json': { schema: z.object({ error: z.string() }) } } },
       },
     }),
-    (c) => {
+    async (c) => {
       const { id } = c.req.valid('param')
-      const managed = c.var.ctx.db.prepare("SELECT 1 FROM managed_agents WHERE session_id=? AND owner_subject=? AND desired!='destroyed'").get(id,c.get('principal').subject)
-      if (managed) return c.json({ error: 'managed_agent_destroy_required' },409)
-      const ok = deleteSession(c.var.ctx.db, id, c.get('principal').subject)
-      if (ok) c.var.ctx.bus.publish('session.deleted', { ownerSubject:c.get('principal').subject, sessionId: id })
-      return c.json({ deleted: ok }, 200)
+      try {
+        const ok = await sessionServices(c.var.ctx).conversations.delete(c.get('principal').subject,id)
+        if (ok) c.var.ctx.bus.publish('session.deleted', { ownerSubject:c.get('principal').subject, sessionId: id })
+        return c.json({ deleted: ok }, 200)
+      } catch(error) {
+        if(error instanceof ConversationError&&error.status===409)return c.json({error:error.code},409)
+        throw error
+      }
     },
   )
 
@@ -278,10 +272,9 @@ export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
         },
       },
     }),
-    (c) => {
+    async (c) => {
       const { id } = c.req.valid('param')
-      if (!getSession(c.var.ctx.db, id, c.get('principal').subject)) return c.json([], 200)
-      return c.json(listMessages(c.var.ctx.db, id), 200)
+      return c.json(await sessionServices(c.var.ctx).conversations.listMessages(c.get('principal').subject,id), 200)
     },
   )
 
@@ -299,11 +292,11 @@ export function sessionRoutes(): OpenAPIHono<{ Variables: { ctx: ServerContext }
         },
       },
     }),
-    (c) => {
-      const { id } = c.req.valid('param')
-      if (!getSession(c.var.ctx.db, id, c.get('principal').subject)) return c.json([], 200)
-      reconcileTerminalSession(c.var.ctx.db, id)
-      return c.json(listSessionParts(c.var.ctx.db, id).map(part => {
+    async (c) => {
+      const { id } = c.req.valid('param'),owner=c.get('principal').subject,store=sessionServices(c.var.ctx)
+      if (!await store.conversations.get(owner,id)) return c.json([], 200)
+      await store.relay.reconcileSession(owner,id)
+      return c.json((await store.conversations.listSessionParts(owner,id)).map(part => {
         if (part.type !== 'file') return part
         const { data: _data, ...payload } = part.payload
         return { ...part, payload }

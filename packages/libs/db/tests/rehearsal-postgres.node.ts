@@ -9,7 +9,7 @@ import {sql} from 'drizzle-orm'
 import {MIGRATIONS} from '../../../apps/core/src/storage/schema.ts'
 import {createPostgresDatabase} from '../src/postgres/client.ts'
 import {migratePostgresDatabase} from '../src/postgres/migrate.ts'
-import {rehearseSqliteBackup,createHeldImportFixture} from '../scripts/rehearse-sqlite-backup.ts'
+import {rehearseSqliteBackup,createHeldImportFixture,importCutoverBackup} from '../scripts/rehearse-sqlite-backup.ts'
 import {resetImportedExecutionState,ImportResetBlocked} from '../scripts/import-execution-reset.ts'
 import {restoreFingerprint} from '../scripts/restore-fingerprint.ts'
 import {execFileSync} from 'node:child_process'
@@ -52,6 +52,33 @@ test('rollback-only SQLite copy rehearsal against PostgreSQL',{skip:!adminUrl},a
    // Explicitly imported source IDs/rowids do not consume identity sequences.
    const [sequence]=await db.execute<{is_called:boolean}>(sql`SELECT is_called FROM managed_operations_ordinal_seq`)
    assert.equal(sequence!.is_called,false)
+  })
+  await t.test('explicit cutover refuses missing confirmation, stale snapshots and a running API coordinator',async()=>{
+   const target='rue_test_'+randomUUID().replaceAll('-',''),targetUrl=new URL(adminUrl!);targetUrl.pathname='/'+target
+   await admin.sql`CREATE DATABASE ${admin.sql(target)}`
+   const destination=createPostgresDatabase({url:targetUrl.toString(),maxConnections:1}),holder=createPostgresDatabase({url:targetUrl.toString(),maxConnections:1})
+   try{
+    await migratePostgresDatabase(destination.db)
+    const confirmation={expectedDatabase:target,sourceSha256:hash(),acknowledgeStoppedWriters:true,acknowledgeExecutionHold:true}
+    await assert.rejects(importCutoverBackup(path,destination.db,{...confirmation,acknowledgeStoppedWriters:false}),/cutover_confirmation_required/)
+    await assert.rejects(importCutoverBackup(path,destination.db,{...confirmation,sourceSha256:'0'.repeat(64)}),/cutover_source_hash_mismatch/)
+    await assert.rejects(createHeldImportFixture(path,destination.db,target),/disposable_database_required/)
+    await holder.sql`SELECT pg_advisory_lock(hashtextextended('rue:core-coordinator',0))`
+    await assert.rejects(importCutoverBackup(path,destination.db,confirmation),/cutover_coordinator_in_use/)
+    await holder.close()
+    await assert.rejects(importCutoverBackup(path,destination.db,confirmation),error=>error instanceof ImportResetBlocked)
+    assert.equal((await destination.sql`SELECT count(*)::integer AS n FROM sessions`)[0]!.n,0)
+    // Resolve only this synthetic fixture's pending operation, then pin the new hash.
+    const edited=new DatabaseSync(path);edited.exec("UPDATE managed_operations SET status='succeeded'");edited.close()
+    const report=await importCutoverBackup(path,destination.db,{...confirmation,sourceSha256:hash()})
+    assert.equal(report.committedForCutover,true);assert.equal(report.committedForRestore,false);assert.equal(report.cutoverReady,false)
+    assert.equal(report.executionReset?.executionHeld,true)
+    assert.equal((await destination.sql`SELECT desired FROM workers`)[0]!.desired,'draining')
+    await assert.rejects(importCutoverBackup(path,destination.db,{...confirmation,sourceSha256:hash()}),/target_not_empty/)
+   }finally{
+    await holder.close();await destination.close();await admin.sql`DROP DATABASE ${admin.sql(target)} WITH (FORCE)`
+    const original=new DatabaseSync(path);original.exec("UPDATE managed_operations SET status='pending'");original.close()
+   }
   })
   await t.test('nonempty or mismatched targets are refused without modifying their data',async()=>{
    await assert.rejects(rehearseSqliteBackup(path,db,'production'),/disposable_database_required/)

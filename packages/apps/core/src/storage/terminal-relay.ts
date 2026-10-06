@@ -1,4 +1,6 @@
-import {agentStatusSchema,mergeAgentStatus,acknowledgedCatalogHash} from './agent-status.js'
+import {acknowledgedCatalogHash} from './agent-status.js'
+import {storedHealth,summaryHealth,healthCatalog,mergeHealth,type RelayHealth} from './relay-health.js'
+export type {RelayHealth} from './relay-health.js'
 import {recordTaskNotification} from './notifications.js'
 import { managedAcceptingPrompts } from './managed-agents.js'
 import { createHash, randomUUID } from 'node:crypto'
@@ -11,9 +13,6 @@ export const RELAY_LEASE_MS = 60_000
 export const APPROVAL_TIMEOUT_MS = 5 * 60_000
 export const LEGACY_RUN_TIMEOUT_MS = 10 * 60_000
 export const MAX_REMOTE_RUN_MS = 24 * 60 * 60_000
-export interface RelayHealth { status?:import('./agent-status.js').AgentStatus; transport?: 'websocket' | 'https'; agentWorking?: boolean; uploadFailures: number; retries: number; lastUploadAt: number | null; pendingCount: number; pendingBytes: number; pollLatencyMs: number }
-function storedHealth(raw:string|null):RelayHealth|null{try{const value=raw?JSON.parse(raw):null;return value&&typeof value==='object'&&!Array.isArray(value)?value:null}catch{return null}}
-function summaryHealth(raw:string|null){const health=storedHealth(raw);if(!health?.status)return health;const {catalog,...status}=health.status;return {...health,status}}
 const lease = (h: Host, now: number) => ({ protocol: h.relay_protocol, agentStatusVersion:1, agentCatalogVersion:1, agentCatalogHash:acknowledgedCatalogHash(storedHealth(h.relay_health)?.status), serverNow: now, expiresAt: h.lease_expires_at, durationMs: RELAY_LEASE_MS })
 const expired = (h: Host, now: number) => h.relay_protocol === 2 ? !h.lease_expires_at || now >= h.lease_expires_at || now < (h.last_seen_at ?? 0) : now - (h.last_seen_at ?? 0) > 30_000
 import {RelayError} from '@multiterm/rue-db'
@@ -69,8 +68,7 @@ export function remoteComputers(db: Database, owner: string, now = Date.now()) {
 }
 export function computerCatalog(db:Database,owner:string,id:string){
  const h=host(db,id);if(!h||h.owner_subject!==owner||h.revoked_at!==null)return undefined
- const parsed=agentStatusSchema.safeParse(storedHealth(h.relay_health)?.status),status=parsed.success?parsed.data:undefined
- return {ownerSubject:owner,connectionId:id,sessionId:h.session_id,piVersion:status?.piVersion??null,catalog:status?.catalog??null,catalogHash:acknowledgedCatalogHash(status)??null,observedAt:h.last_seen_at}
+ return {ownerSubject:owner,connectionId:id,sessionId:h.session_id,...healthCatalog(h.relay_health),observedAt:h.last_seen_at}
 }
 export function computerQueue(db: Database, owner: string, id: string, now = Date.now()) {
   const computer = host(db, id)
@@ -153,7 +151,7 @@ export function pollComputer(db: Database, token: string, id: string, instance: 
     if (h.relay_protocol !== protocol) throw new RelayError('relay_protocol_mismatch')
     reconcile(db, id, now) // Never renew an already-expired command.
     const expiresAt = Math.min(now + RELAY_LEASE_MS, c.expiresAt)
-    db.prepare('UPDATE terminal_connections SET last_seen_at=?,lease_expires_at=?,relay_health=? WHERE id=?').run(now, protocol === 2 ? expiresAt : null, health ? JSON.stringify(health.status?{...health,status:mergeAgentStatus(storedHealth(h.relay_health)?.status,health.status)}:health) : null, id)
+    db.prepare('UPDATE terminal_connections SET last_seen_at=?,lease_expires_at=?,relay_health=? WHERE id=?').run(now, protocol === 2 ? expiresAt : null, health ? JSON.stringify(mergeHealth(h.relay_health,{...health})) : null, id)
     if (protocol === 2) db.prepare("UPDATE terminal_commands SET lease_expires_at=MIN(?, CASE WHEN status='running' THEN COALESCE(started_at,created_at)+? ELSE COALESCE(claimed_at,created_at)+? END) WHERE connection_id=? AND instance_id=? AND status IN ('claimed','running')").run(expiresAt, MAX_REMOTE_RUN_MS, APPROVAL_TIMEOUT_MS, id, instance)
     return { connection: c, lease: lease(host(db, id)!, now), remoteEnabled: Boolean(host(db, id)!.remote_enabled), commands: (db.prepare("SELECT * FROM terminal_commands WHERE connection_id=? AND status IN ('queued','claimed','running') ORDER BY CASE WHEN status='queued' THEN 1 ELSE 0 END,COALESCE(queue_position,rowid),rowid LIMIT 10").all(id) as TerminalCommand[]).filter(row => row.status !== 'queued' || managedAcceptingPrompts(db, id, now)).map(row => ({ ...row, hasAttachments: Boolean(db.prepare("SELECT 1 FROM parts WHERE message_id=? AND type='file' LIMIT 1").get(row.user_message_id)) })) }
   }).immediate()

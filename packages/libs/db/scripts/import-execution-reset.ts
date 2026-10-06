@@ -9,6 +9,15 @@ import type {RuePostgresDatabase} from '../src/postgres/client.js'
  * Intentionally restricted to disposable databases, not a live cutover command. */
 export async function resetImportedExecutionState(tx:Pick<RuePostgresDatabase,'execute'>,expectedDatabase:string,now=Date.now()){
  if(!/^rue_(rehearsal|restore)_[a-f0-9]{32}$/.test(expectedDatabase))throw Error('import_reset_disposable_database_required')
+ return applyImportedExecutionHold(tx,expectedDatabase,now)
+}
+/** Separate operator cutover entry point. Rehearsal's disposable-name guard is
+ * unchanged; caller must have stopped writers and hold the coordinator lock. */
+export async function resetCutoverExecutionState(tx:Pick<RuePostgresDatabase,'execute'>,expectedDatabase:string,acknowledgeStoppedWriters:boolean,now=Date.now()){
+ if(acknowledgeStoppedWriters!==true||!/^rue_(?!rehearsal_|restore_)[a-z][a-z0-9_]{0,55}$/.test(expectedDatabase))throw Error('import_reset_cutover_confirmation_required')
+ return applyImportedExecutionHold(tx,expectedDatabase,now)
+}
+async function applyImportedExecutionHold(tx:Pick<RuePostgresDatabase,'execute'>,expectedDatabase:string,now:number){
  if(!Number.isSafeInteger(now)||now<1)throw Error('import_reset_time_invalid')
  const [identity]=await tx.execute<{name:string}>(sql`SELECT current_database() AS name`)
  if(identity?.name!==expectedDatabase)throw Error('import_reset_database_identity_mismatch')

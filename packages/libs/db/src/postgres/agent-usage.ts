@@ -5,6 +5,10 @@ import {lockPostgresOwner} from './owner-lock.js'
 import {sessions,terminalConnections,usageCredentials,agentUsageEvents} from './schema.js'
 type Tx=Parameters<Parameters<RuePostgresDatabase['transaction']>[0]>[0]
 export interface UsageEvent {eventId:string;provider:string;model:string;credentialId:string|null;time:number;input:number;output:number;cacheRead:number;cacheWrite:number;costUsd:number|null}
+export interface UsageReport {
+ ownerSubject:string;sessionId:string;from:number;to:number;timezone:'UTC';basis:'runtime-estimate'
+ rows:Array<{time:number;provider:string;credentialId:string|null;requests:number;input:number;output:number;cacheRead:number;cacheWrite:number;costUsd:number|null;unpricedRequests:number}>
+}
 export function createPostgresUsageRepository(db:RuePostgresDatabase,options:{parseEvent:(raw:unknown)=>UsageEvent;encryptionKey:()=>Buffer|undefined}){
  async function credentialInTransaction(tx:Tx,owner:string,provider:string,apiKey:string,at?:number){
   const secret=options.encryptionKey();if(!secret)throw Error('Credential storage unavailable')
@@ -28,7 +32,7 @@ export function createPostgresUsageRepository(db:RuePostgresDatabase,options:{pa
   credentialInTransaction,recordInTransaction,
   credential(owner:string,provider:string,apiKey:string,at?:number){return db.transaction(tx=>credentialInTransaction(tx,owner,provider,apiKey,at))},
   recordCloud(owner:string,sessionId:string,raw:unknown,at?:number){return db.transaction(tx=>recordInTransaction(tx,owner,sessionId,`cloud:${sessionId}`,raw,at))},
-  async report(owner:string,sessionId:string,days:number,now=Date.now()){
+  async report(owner:string,sessionId:string,days:number,now=Date.now()):Promise<UsageReport>{
    if(!Number.isSafeInteger(days)||days<1||days>366||!Number.isSafeInteger(now)||now<0)throw Error('Invalid usage range')
    const from=Math.floor(now/86400000)*86400000-(days-1)*86400000,to=now
    const raw=await db.execute<{time:string|number;provider:string;credentialId:string|null;requests:string|number;input:string|number;output:string|number;cacheRead:string|number;cacheWrite:string|number;costUsd:number|null;unpricedRequests:string|number}>(sql`

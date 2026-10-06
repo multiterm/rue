@@ -4,6 +4,7 @@ import { createPiProvider } from '../../src/provider/pi.js'
 import { validateContent, appendContent } from '../../src/storage/attachments.js'
 import { openDatabase, createSession, appendMessage } from '../../src/storage/index.js'
 import { runQuery } from '../../src/session/index.js'
+import {createSqliteSessionServices} from '../../src/server/session-services.js'
 import { Bus } from '../../src/bus/index.js'
 import { estimateTokensForConversation } from '../../src/session/compaction.js'
 
@@ -27,7 +28,7 @@ test('persisted ordered attachments reach the cloud Pi harness as image/text, wi
     faux.setResponses([fauxAssistantMessage([fauxText('Received attachments')])])
     const models = createModels(); models.setProvider(faux.provider)
     const stream = vi.spyOn(models, 'streamSimple')
-    const result = await runQuery({ db, bus: new Bus(), sessionId: 'session', messageId: 'assistant', provider: createPiProvider(models), model: 'test-model', apiKey: 'explicit-key' })
+    const result = await runQuery({ services:createSqliteSessionServices(db), ownerSubject:'local', bus: new Bus(), sessionId: 'session', messageId: 'assistant', provider: createPiProvider(models), model: 'test-model', apiKey: 'explicit-key' })
     expect(result.text).toBe('Received attachments')
     const content = stream.mock.calls[0]![1].messages[0]!.content
     expect(content).toEqual(expect.arrayContaining([{ type: 'text', text: 'Before' }, { type: 'image', data: image.data, mimeType: 'image/png' }, { type: 'text', text: 'After' }]))

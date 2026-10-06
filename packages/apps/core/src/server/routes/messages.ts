@@ -1,16 +1,14 @@
-import {recordTaskNotification} from '../../storage/notifications.js'
+import {ConversationError,RelayError} from '@multiterm/rue-db/postgres'
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { randomBytes } from 'node:crypto'
-import { enqueueTerminalPrompt, RelayError } from '../../storage/terminal-relay.js'
-import { agentSettings, agentApiKey } from '../../storage/agent-settings.js'
 import { piProvider } from '../../provider/pi.js'
 import { getProvider } from '../../provider/index.js'
 import { runQuery } from '../../session/index.js'
-import { appendMessage, appendPart, getSession } from '../../storage/index.js'
+import {sessionServices} from '../session-services.js'
 import { getAuthBackend } from '../../auth/index.js'
 import type { ServerContext } from '../context.js'
 
-import { AttachmentError, validateContent, contentSummary, checkAttachmentBudget, appendContent, type MessageContent } from '../../storage/attachments.js'
+import { AttachmentError, validateContent, contentSummary, type MessageContent } from '../../storage/attachments.js'
 
 /* ---------- schemas ---------- */
 
@@ -50,7 +48,7 @@ const ErrorSchema = z.object({ error: z.string() }).openapi('Error')
 function reserveRun(ctx: ServerContext, subject: string): (() => void) | undefined {
   const active = ctx.activeRuns ??= new Map<string, number>()
   const count = active.get(subject) ?? 0
-  if (count >= 3) return undefined
+  if (count >= 3 || ctx.historyResets?.has(subject)) return undefined
   active.set(subject, count + 1)
   return () => {
     const next = (active.get(subject) ?? 1) - 1
@@ -118,7 +116,8 @@ export function messageRoutes(terminalEnabled = false): OpenAPIHono<{ Variables:
       const { id: sessionId } = c.req.valid('param')
       const body = c.req.valid('json')
 
-      const session = getSession(ctx.db, sessionId, c.get('principal').subject)
+      const owner=c.get('principal').subject,store=sessionServices(ctx)
+      const session = await store.conversations.get(owner,sessionId)
       if (!session) return c.json({ error: 'session_not_found' }, 404)
 
       let content: MessageContent[] | undefined
@@ -128,13 +127,12 @@ export function messageRoutes(terminalEnabled = false): OpenAPIHono<{ Variables:
 
       // Fail closed even if mutable session metadata has been edited. A linked
       // terminal must never fall back to the owner's configured cloud provider.
-      const terminal = ctx.db.prepare('SELECT id FROM terminal_connections WHERE session_id=?').get(sessionId)
-      if (terminal || session.agent === 'pi-terminal' || session.meta.terminalConnectionId) {
+      if (session.terminalConnectionId || session.agent === 'pi-terminal' || session.meta.terminalConnectionId) {
         if (!terminalEnabled || !body.requestId) return c.json({ error: 'terminal_transport_unavailable' }, 503)
         try {
-          const queued = enqueueTerminalPrompt(ctx.db, c.get('principal').subject, sessionId, body.requestId, text, Date.now(), content)
-          ctx.bus.publish('message.created', { sessionId, messageId: queued.user_message_id })
-          ctx.bus.publish('terminal.command.queued', { sessionId })
+          const queued = await store.relay.enqueue(owner, sessionId, body.requestId, text, undefined, content)
+          ctx.bus.publish('message.created', { ownerSubject:owner, sessionId, messageId: queued.user_message_id })
+          ctx.bus.publish('terminal.command.queued', { ownerSubject:owner, sessionId })
           return c.json({ userMessageId: queued.user_message_id, assistantMessageId: queued.assistant_message_id, stopReason: queued.status }, 200)
         } catch (error) {
           if (error instanceof AttachmentError) return c.json({ error: error.message }, 400)
@@ -142,7 +140,7 @@ export function messageRoutes(terminalEnabled = false): OpenAPIHono<{ Variables:
         }
       }
 
-      const settings = agentSettings(ctx.db, c.get('principal').subject)
+      const settings = await store.settings.get(owner)
       const configured = settings.revision > 0
       const providerId = configured ? settings.provider : body.provider ?? session.provider ?? ctx.config.provider
       const model = configured ? settings.model : body.model ?? session.model ?? ctx.config.model
@@ -151,52 +149,32 @@ export function messageRoutes(terminalEnabled = false): OpenAPIHono<{ Variables:
         return c.json({ error: `unknown_provider:${providerId}` }, 400)
       }
       let apiKey: string
-      try { apiKey = (configured ? agentApiKey(ctx.db, c.get('principal').subject) : await getAuthBackend().get(providerId)) ?? '' }
+      try { apiKey = (configured ? await store.settings.apiKey(owner) : await getAuthBackend().get(providerId)) ?? '' }
       catch { return c.json({ error: 'agent_key_storage_unavailable' }, 503) }
       // Ollama uses apiKey as base URL; allow empty for default localhost.
       if (!apiKey && providerId !== 'ollama') {
         return c.json({ error: `no_credentials_for:${providerId}` }, 400)
       }
 
-      try { checkAttachmentBudget(ctx.db, c.get('principal').subject, content) }
-      catch (error) { return c.json({ error: error instanceof AttachmentError ? error.message : 'Invalid attachments' }, 400) }
-      const releaseRun = reserveRun(ctx, c.get('principal').subject)
+      const releaseRun = reserveRun(ctx, owner)
       if (!releaseRun) return c.json({ error: 'too_many_active_runs' }, 429)
 
-      // Persist the user message + text part synchronously.
-      const userMessageId = generateId('msg')
-      appendMessage(ctx.db, {
-        id: userMessageId,
-        sessionId,
-        role: 'user',
-      })
-      if (content) appendContent(ctx.db, sessionId, userMessageId, content)
-      else appendPart(ctx.db, {
-        id: generateId('txt'),
-        sessionId,
-        messageId: userMessageId,
-        type: 'text',
-        payload: { text: body.text },
-      })
-      ctx.bus.publish('message.created', {
-        sessionId,
-        messageId: userMessageId,
-        role: 'user',
-        text: body.text,
-      })
-
-      // Create the assistant message shell.
-      const assistantMessageId = generateId('msg')
-      appendMessage(ctx.db, {
-        id: assistantMessageId,
-        sessionId,
-        role: 'assistant',
-        provider: providerId,
-        model,
-      })
+      // Recheck remote authority and atomically persist both message shells,
+      // content and quota admission. Never leak an admission slot on failure.
+      const userMessageId=generateId('msg'),assistantMessageId=generateId('msg')
+      try {
+        await store.conversations.beginCloud(owner,{sessionId,userMessageId,assistantMessageId,textPartId:generateId('txt'),text:body.text,content,provider:providerId,model})
+      } catch(error) {
+        releaseRun()
+        if(error instanceof AttachmentError)return c.json({error:error.message},400)
+        if(error instanceof ConversationError&&error.status===404)return c.json({error:error.code},404)
+        return c.json({error:error instanceof ConversationError?error.code:'conversation_storage_unavailable'},503)
+      }
+      ctx.bus.publish('message.created',{ownerSubject:owner,sessionId,messageId:userMessageId,role:'user',text:body.text})
 
       const runPromise = runQuery({
-        db: ctx.db,
+        services: store,
+        ownerSubject: owner,
         bus: ctx.bus,
         sessionId,
         messageId: assistantMessageId,
@@ -206,8 +184,8 @@ export function messageRoutes(terminalEnabled = false): OpenAPIHono<{ Variables:
         systemPrompt: configured ? [settings.systemPrompt, typeof session.meta.description === 'string' ? session.meta.description : '', body.systemPrompt ?? ''].filter(Boolean).join('\n\n') : body.systemPrompt ?? ctx.config.systemPrompt,
         tokenBudget: ctx.config.tokenBudget,
         maxTurns: ctx.config.maxTurns,
-      }).then(result=>{
-        ctx.db.transaction(()=>recordTaskNotification(ctx.db,sessionId,`cloud:${assistantMessageId}`,result.stopReason==='completed'?'task_completed':'task_failed')).immediate()
+      }).then(async result=>{
+        await store.notifyCompletion(owner,sessionId,`cloud:${assistantMessageId}`,result.stopReason==='completed'?'task_completed':'task_failed')
         return result
       }).finally(releaseRun)
 
@@ -225,11 +203,11 @@ export function messageRoutes(terminalEnabled = false): OpenAPIHono<{ Variables:
       }
 
       // Fire-and-forget. Caller subscribes to SSE for progress.
-      runPromise.catch((err) => {
+      runPromise.catch(() => {
         // The runQuery loop converts errors to error parts internally; this
         // catch is only for genuine programming errors.
         // eslint-disable-next-line no-console
-        console.error('[runQuery] unexpected throw:', err)
+        console.error('[runQuery] execution or completion persistence failed')
       })
 
       return c.json({ userMessageId, assistantMessageId }, 200)

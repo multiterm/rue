@@ -73,8 +73,8 @@ export function runtimeControlDelegation(db:Database,connection:TerminalConnecti
   const {a,g}=delegated(db,connection,now)
   const pending=Boolean(db.prepare("SELECT 1 FROM runtime_rollouts WHERE worker_id=? AND phase NOT IN ('succeeded','failed')").get(a.worker_id))
   const blockedBy=!managerReady(a,now)?'manager_unavailable':a.worker_desired!=='active'?'host_draining':pending?'rollout_in_progress':null
-  return {approved:true,canSubmit:blockedBy===null,blockedBy,grantRevision:g.revision,grantExpiresAt:g.expires_at}
- }catch(error){if(!(error instanceof RuntimeControlError)&&!(error instanceof WorkerError))throw error;return {approved:false,canSubmit:false,blockedBy:'approval_required',grantRevision:null,grantExpiresAt:null}}
+  return {approved:true,canSubmit:blockedBy===null,blockedBy,grantRevision:g.revision,grantExpiresAt:g.expires_at} as const
+ }catch(error){if(!(error instanceof RuntimeControlError)&&!(error instanceof WorkerError))throw error;return {approved:false,canSubmit:false,blockedBy:'approval_required',grantRevision:null,grantExpiresAt:null} as const}
 }
 export function requestDelegatedRuntimeRollout(db:Database,identify:(now:number)=>TerminalConnection,raw:unknown,suppliedNow?:number){
  const input=rolloutRequestSchema.parse(raw)

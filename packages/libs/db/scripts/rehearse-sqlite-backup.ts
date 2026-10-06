@@ -9,7 +9,7 @@ import {postgresSchema} from '../src/postgres/schema.js'
 import {createPostgresDatabase,type RuePostgresDatabase} from '../src/postgres/client.js'
 import {migratePostgresDatabase} from '../src/postgres/migrate.js'
 import {auditSqliteBackup} from './audit-sqlite-backup.mjs'
-import {resetImportedExecutionState,ImportResetBlocked} from './import-execution-reset.js'
+import {resetImportedExecutionState,resetCutoverExecutionState,ImportResetBlocked} from './import-execution-reset.js'
 const quote=(name:string)=>'"'+name.replaceAll('"','""')+'"'
 const tableSql=(name:string)=>sql.raw('"public".'+quote(name))
 const ordinals=new Set(['terminal_commands','managed_operations','managed_compactions'])
@@ -18,7 +18,7 @@ interface Column {name:string;type:string;pk:number}
 export class RehearsalCopyError extends Error {
  constructor(readonly details:{table:string;sqlState:string;column?:string}){super('rehearsal_copy_failed');this.name='RehearsalCopyError'}
 }
-interface RehearsalReport {rolledBack:boolean;committedForRestore:boolean;executionReset?:Awaited<ReturnType<typeof resetImportedExecutionState>>;cutoverReady:false;tables:number;rows:number;counts:Record<string,number>;sourceBytesUnchanged:true;requiresExecutionReconciliation:boolean;remainingGates:string[]}
+interface RehearsalReport {rolledBack:boolean;committedForRestore:boolean;committedForCutover?:boolean;sourceSha256?:string;executionReset?:Awaited<ReturnType<typeof resetImportedExecutionState>>;cutoverReady:false;tables:number;rows:number;counts:Record<string,number>;sourceBytesUnchanged:true;requiresExecutionReconciliation:boolean;remainingGates:string[]}
 /** COPY VALIDATION ONLY. Always rolls back, and only accepts an empty, explicitly
  * named disposable database. No commit mode, credential decryption, execution
  * authority reset, attachment migration, or claim of a completed restore. */
@@ -26,10 +26,18 @@ export async function rehearseSqliteBackup(path:string,db:RuePostgresDatabase,ex
 /** A distinct operator-only path: commit an execution-held fixture for pg_dump/
  * pg_restore testing. Still refuses production names and nonempty databases. */
 export async function createHeldImportFixture(path:string,db:RuePostgresDatabase,expectedDatabase:string){return copySqliteBackup(path,db,expectedDatabase,true)}
-async function copySqliteBackup(path:string,db:RuePostgresDatabase,expectedDatabase:string,heldFixture:boolean):Promise<RehearsalReport>{
- if(!/^rue_rehearsal_[a-f0-9]{32}$/.test(expectedDatabase))throw Error('rehearsal_disposable_database_required')
+/** Explicit operator-only cutover. Never used by API startup. The source must be
+ * a fresh quiescent backup; the operator supplies its independently recorded hash.
+ * This commits held data, not live execution authority or a claim of recovery. */
+export async function importCutoverBackup(path:string,db:RuePostgresDatabase,confirmation:{expectedDatabase:string;sourceSha256:string;acknowledgeStoppedWriters:boolean;acknowledgeExecutionHold:boolean}){
+ if(confirmation.acknowledgeStoppedWriters!==true||confirmation.acknowledgeExecutionHold!==true||!/^rue_(?!rehearsal_|restore_)[a-z][a-z0-9_]{0,55}$/.test(confirmation.expectedDatabase)||!/^[a-f0-9]{64}$/.test(confirmation.sourceSha256))throw Error('cutover_confirmation_required')
+ return copySqliteBackup(path,db,confirmation.expectedDatabase,true,confirmation.sourceSha256)
+}
+async function copySqliteBackup(path:string,db:RuePostgresDatabase,expectedDatabase:string,heldFixture:boolean,cutoverHash?:string):Promise<RehearsalReport>{
+ if(!cutoverHash&&!/^rue_rehearsal_[a-f0-9]{32}$/.test(expectedDatabase))throw Error('rehearsal_disposable_database_required')
  auditSqliteBackup(path) // Private-file validation before hashing.
  const before=await fingerprint(path),stat=lstatSync(path),audit=auditSqliteBackup(path)
+ if(cutoverHash&&before!==cutoverHash)throw Error('cutover_source_hash_mismatch')
  const configs=Object.values(postgresSchema).map(table=>getTableConfig(table)),names=configs.map(c=>c.name).sort()
  if(JSON.stringify(names)!==JSON.stringify(Object.keys(audit.tableCounts).filter(name=>name!=='migrations').sort()))throw Error('rehearsal_source_inventory_mismatch')
  const source=new DatabaseSync(path,{readOnly:true}),rollback=Symbol('rollback-only');let report:RehearsalReport|undefined,reading=false
@@ -44,6 +52,7 @@ async function copySqliteBackup(path:string,db:RuePostgresDatabase,expectedDatab
    for(const name of ready){pending.delete(name);ordered.push(name)}
   }
   await db.transaction(async tx=>{
+   if(cutoverHash){const [lock]=await tx.execute<{acquired:boolean}>(sql`SELECT pg_try_advisory_xact_lock(hashtextextended('rue:core-coordinator',0)) AS acquired`);if(!lock?.acquired)throw Error('cutover_coordinator_in_use')}
    const [identity]=await tx.execute<{name:string}>(sql`SELECT current_database() AS name`)
    if(identity?.name!==expectedDatabase)throw Error('rehearsal_database_identity_mismatch')
    await tx.execute(sql`SET LOCAL lock_timeout='2s'`);await tx.execute(sql`SET LOCAL statement_timeout='30s'`)
@@ -106,7 +115,7 @@ async function copySqliteBackup(path:string,db:RuePostgresDatabase,expectedDatab
    }
    const after=lstatSync(path)
    if(after.ino!==stat.ino||after.dev!==stat.dev||await fingerprint(path)!==before)throw Error('rehearsal_source_changed')
-   const executionReset=heldFixture?await resetImportedExecutionState(tx,expectedDatabase):undefined
+   const executionReset=heldFixture?(cutoverHash?await resetCutoverExecutionState(tx,expectedDatabase,true):await resetImportedExecutionState(tx,expectedDatabase)):undefined
    if(heldFixture){
     for(const table of configs)for(const column of table.columns.filter(c=>c.generatedIdentity)){
      const [row]=await tx.execute<{maximum:string}>(sql`SELECT COALESCE(MAX(${sql.identifier(column.name)}),0)::text AS maximum FROM ${tableSql(table.name)}`)
@@ -119,11 +128,11 @@ async function copySqliteBackup(path:string,db:RuePostgresDatabase,expectedDatab
      await tx.execute(sql`ALTER SEQUENCE ${sql.identifier('public')}.${sql.identifier(expected)} RESTART WITH ${sql.raw(next.toString())}`)
     }
    }
-   report={rolledBack:!heldFixture,committedForRestore:heldFixture,...(executionReset?{executionReset}:{}),cutoverReady:false,tables:names.length,rows:Object.values(counts).reduce((a,b)=>a+b,0),counts,sourceBytesUnchanged:true,requiresExecutionReconciliation:audit.requiresExecutionReconciliation,remainingGates:[...audit.remainingGates,'committed-import-and-durable-restore-rehearsal']}
+   report={rolledBack:!heldFixture,committedForRestore:heldFixture&&!cutoverHash,...(cutoverHash?{committedForCutover:true,sourceSha256:before}:{}),...(executionReset?{executionReset}:{}),cutoverReady:false,tables:names.length,rows:Object.values(counts).reduce((a,b)=>a+b,0),counts,sourceBytesUnchanged:true,requiresExecutionReconciliation:audit.requiresExecutionReconciliation,remainingGates:[...audit.remainingGates,'committed-import-and-durable-restore-rehearsal']}
    if(!heldFixture)throw rollback
   })
  }catch(error){
-  if(error!==rollback){if(error instanceof ImportResetBlocked||(error instanceof Error&&/^(rehearsal|import_reset)_[a-z_]+$/.test(error.message)))throw error;throw Error('rehearsal_copy_failed')}
+  if(error!==rollback){if(error instanceof ImportResetBlocked||(error instanceof Error&&/^(rehearsal|import_reset|cutover)_[a-z_]+$/.test(error.message)))throw error;throw Error('rehearsal_copy_failed')}
  }finally{if(reading)source.exec('ROLLBACK');source.close()}
  if(!report)throw Error('rehearsal_rollback_unconfirmed')
  if(!heldFixture)for(const name of names){const [count]=await db.execute<{n:number}>(sql`SELECT count(*)::int AS n FROM ${tableSql(name)}`);if(count?.n!==0)throw Error('rehearsal_rollback_unconfirmed')}

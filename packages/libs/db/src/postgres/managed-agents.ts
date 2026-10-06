@@ -22,13 +22,13 @@ const publicOperation=(o:Operation)=>({id:o.id,agentId:o.agentId,revision:o.revi
 /** Account lifecycle and leased worker operations. MCP revocation calls
  * changeInTransaction so stopping, grant fencing, profile detachment and secret
  * deletion share one transaction. External runtime work stays outside SQL. */
-export function createPostgresManagedAgentRepository<C extends ManagedConfiguration>(db:RuePostgresDatabase,options:{
+export function createPostgresManagedAgentRepository<C extends ManagedConfiguration,S extends {piVersion?:string|null}&Record<string,unknown>={piVersion?:string|null}&Record<string,unknown>>(db:RuePostgresDatabase,options:{
  parseCreate:(raw:unknown)=>ManagedCreate<C>
  parseChange:(raw:unknown)=>ManagedChange<C>
  parseReport:(raw:unknown)=>ManagedReport
  codec:CredentialCodec
  worker:Pick<ReturnType<typeof createPostgresWorkerRepository>,'withAuthority'>
- runtimeStatus:(health:string|null)=>({piVersion?:string}&Record<string,unknown>)|null
+ runtimeStatus:(health:string|null)=>S|null
  filesystemCapability:(config:C)=>'managed-filesystem-v1'|'managed-filesystem-v2'|undefined
  mcp:Pick<ReturnType<typeof createPostgresMcpRepository>,'resolveInTransaction'>
 }){
@@ -174,6 +174,7 @@ export function createPostgresManagedAgentRepository<C extends ManagedConfigurat
     return publicAgent(await owned(tx,a.ownerSubject,id))
    },at)
   },
+  async get(owner:string,id:string){return publicAgent(await owned(db,owner,id))},
   async list(owner:string){return (await db.select().from(agents).where(eq(agents.ownerSubject,owner)).orderBy(asc(agents.createdAt),asc(agents.id))).map(publicAgent)},
   async operations(owner:string,id:string){await owned(db,owner,id);return (await db.select().from(operations).where(and(eq(operations.agentId,id),eq(operations.ownerSubject,owner))).orderBy(desc(operations.createdAt),desc(operations.ordinal)).limit(100)).map(publicOperation)},
   change(owner:string,id:string,raw:unknown,at?:number){return db.transaction(tx=>changeInTransaction(tx,owner,id,raw,at))},

@@ -7,7 +7,9 @@ import {KeynameClient} from '@keyname/sdk'
 import {KeynameServerClient} from '@keyname/sdk/server'
 import type {SessionRepository} from '@multiterm/rue-db/session-repository'
 export interface RueTrpcContext{sessions:SessionRepository;principalSubject:string;keyname?:{apiUrl:string;clientId?:string;clientSecret?:string}}
-const t=initTRPC.context<RueTrpcContext>().create({transformer:superjson})
+const t=initTRPC.context<RueTrpcContext>().create({transformer:superjson,errorFormatter({shape,error}){
+ return error.code==='INTERNAL_SERVER_ERROR'?{...shape,message:'internal_error',data:{...shape.data,stack:undefined}}:shape
+}})
 const authenticated=t.procedure.use(({ctx,next})=>{if(!ctx.principalSubject?.trim()||ctx.principalSubject==='anonymous')throw new TRPCError({code:'UNAUTHORIZED'});return next()})
 const sessionPageInput=z.object({limit:z.number().int().min(1).max(100).optional(),cursor:z.object({updatedAt:z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),id:z.string().min(1).max(128)}).optional()}).default({})
 const keynameConfig=(ctx:RueTrpcContext)=>{if(!ctx.keyname?.clientId)throw new TRPCError({code:'PRECONDITION_FAILED',message:'Keyname password login is not configured. Continue with Keyname instead.'});return ctx.keyname as {apiUrl:string;clientId:string;clientSecret?:string}}

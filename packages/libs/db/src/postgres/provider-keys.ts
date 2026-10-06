@@ -71,6 +71,16 @@ export function createPostgresProviderKeyRepository(db:RuePostgresDatabase,optio
   }else await tx.insert(providerKeys).values({ownerSubject:owner,provider,encryptedKey,revision}).onConflictDoUpdate({target:[providerKeys.ownerSubject,providerKeys.provider],set:{encryptedKey,revision}})
  }
  return {
+  async reportedHealth(owner:string){
+   const rows=await db.select({health:terminalConnections.relayHealth}).from(terminalConnections).where(and(eq(terminalConnections.ownerSubject,owner),isNull(terminalConnections.revokedAt),sql`${terminalConnections.relayHealth} IS NOT NULL`)).orderBy(desc(terminalConnections.lastSeenAt)).limit(64)
+   return rows.map(row=>row.health!)
+  },
+  /** Caller holds the same live authority transaction as secret delivery. */
+  async available(tx:Tx,owner:string,provider:string,target:CredentialTarget){
+   validateProvider(provider);validateTarget(target)
+   const [grant]=await tx.select().from(providerKeyGrants).where(and(eq(providerKeyGrants.ownerSubject,owner),eq(providerKeyGrants.provider,provider),eq(providerKeyGrants.targetType,target.type),eq(providerKeyGrants.targetId,target.id)))
+   return Boolean(grant&&(await stored(tx,owner,provider))?.encryptedKey)
+  },
   list(owner:string){return db.transaction(tx=>list(tx,owner),{isolationLevel:'repeatable read',accessMode:'read only'})},
   async save(owner:string,provider:string,expected:number,key:string|null,model?:string){
    validateProvider(provider)

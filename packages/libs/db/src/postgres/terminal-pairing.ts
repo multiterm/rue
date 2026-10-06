@@ -2,7 +2,7 @@ import {createHash,randomBytes,randomInt,timingSafeEqual} from 'node:crypto'
 import {and,count,desc,eq,getTableColumns,gt,inArray,isNull,lt,or,sql} from 'drizzle-orm'
 import type {RuePostgresDatabase} from './client.js'
 import {TerminalPairingError,type TerminalConnection} from '../terminal-types.js'
-import {terminalPairingRequests as requests,terminalConnections as connections,terminalCommands as commands,sessions,parts} from './schema.js'
+import {terminalPairingRequests as requests,terminalConnections as connections,terminalCommands as commands,managedAgents,sessions,parts} from './schema.js'
 import {lockPostgresOwner} from './owner-lock.js'
 import {clearPostgresProviderKeyGrants} from './provider-keys.js'
 import {postgresManagedAuthority,ManagedAuthorityExpired} from './managed-authority.js'
@@ -93,6 +93,23 @@ export function createPostgresTerminalPairingRepository(db:RuePostgresDatabase){
    await tx.update(connections).set({activatedAt:row.activatedAt??now}).where(eq(connections.id,row.id));return publicConnection({...row,activatedAt:row.activatedAt??now})
   })},
   authenticate(token:string,id:string,at?:number){return db.transaction(async tx=>publicConnection((await authenticatePostgresTerminal(tx,token,id,at)).row))},
+  /** Bearer-only HTTP control retains its protocol. Managed worker/project
+   * authority and the token deadline are still fenced through commit. */
+  withAuthority<T>(token:string,id:string,run:(tx:Tx,host:Awaited<ReturnType<typeof authenticatePostgresTerminal>>['row'])=>Promise<T>,at?:number){return db.transaction(async tx=>{
+   const state=await authenticatePostgresTerminal(tx,token,id,at),result=await run(tx,state.row),now=at??Date.now()
+   if(now<state.now||now>=state.row.expiresAt)return fail('invalid_terminal_credential')
+   return result
+  })},
+  authority(token:string,id:string,at?:number){return db.transaction(async tx=>{
+   const {row,now}=await authenticatePostgresTerminal(tx,token,id,at)
+   const [managed]=await tx.select({id:managedAgents.id}).from(managedAgents).where(and(eq(managedAgents.connectionId,id),eq(managedAgents.ownerSubject,row.ownerSubject)))
+   if(!managed)return undefined
+   return {serverNow:now,expiresAt:row.expiresAt,relayExpiresAt:row.leaseExpiresAt,id:row.id,piSessionId:row.piSessionId,ownerSubject:row.ownerSubject}
+  })},
+  revokeWithConnection(token:string,id:string,at?:number){return db.transaction(async tx=>{
+   const {row,now}=await authenticatePostgresTerminal(tx,token,id,at,false)
+   return {revoked:await revoke(tx,row.ownerSubject,id,now),connection:publicConnection({...row,revokedAt:row.revokedAt??now})}
+  })},
   revokeCredential(token:string,id:string,at?:number){return db.transaction(async tx=>{const {row,now}=await authenticatePostgresTerminal(tx,token,id,at,false);return revoke(tx,row.ownerSubject,id,now)})},
   revoke(owner:string,id:string,at?:number){return db.transaction(async tx=>{await lockPostgresOwner(tx,owner);return revoke(tx,owner,id,at??Date.now())})},
   async list(owner:string){return (await db.select().from(connections).where(eq(connections.ownerSubject,owner)).orderBy(desc(connections.createdAt),connections.id)).map(publicConnection)},

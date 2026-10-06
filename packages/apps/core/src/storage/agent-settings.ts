@@ -1,6 +1,5 @@
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
-import { openSync, closeSync, fstatSync, readFileSync, constants } from 'node:fs'
-import { isAbsolute } from 'node:path'
+import {createCredentialCodec} from './credential-codec.js'
+import {readCredentialKey} from './credential-key.js'
 import type { Database } from 'better-sqlite3'
 import { z } from 'zod'
 
@@ -13,26 +12,10 @@ export const AgentSettingsUpdateSchema = AgentSettingsSchema.extend({
 })
 export const defaultAgentSettings = { harness: 'pi', provider: 'openai', model: 'gpt-4.1-mini', systemPrompt: 'You are a helpful assistant.' } as const
 interface Row { settings: string; encrypted_key: string | null; revision: number }
-export class AgentSettingsError extends Error {
-  constructor(public readonly code: 'agent_settings_conflict' | 'agent_key_storage_unavailable') { super(code) }
-}
+import { AgentSettingsError } from '@multiterm/rue-db/postgres'
+export { AgentSettingsError }
 export function encryptionKey(db: Database): Buffer | undefined {
-  const value = process.env.RUE_SETTINGS_ENCRYPTION_KEY
-  if (value) {
-    if (!/^[A-Za-z0-9+/]{43}=$/.test(value)) return undefined
-    const key = Buffer.from(value, 'base64')
-    return key.length === 32 ? key : undefined
-  }
-  // Operator-provisioned, backed up separately from the encrypted database.
-  // Never generate or replace a key automatically when reading settings.
-  if (!isAbsolute(db.name)) return undefined
-  let fd: number | undefined
-  try {
-    fd = openSync(`${db.name}.agent-key`, constants.O_RDONLY | constants.O_NOFOLLOW)
-    const stat = fstatSync(fd)
-    if (!stat.isFile() || stat.size !== 32 || (stat.mode & 0o077) !== 0 || stat.uid !== process.getuid?.()) return undefined
-    return readFileSync(fd)
-  } catch { return undefined } finally { if (fd !== undefined) closeSync(fd) }
+  return readCredentialKey(`${db.name}.agent-key`)
 }
 function row(db: Database, owner: string): Row | undefined {
   return db.prepare('SELECT settings, encrypted_key, revision FROM agent_settings WHERE owner_subject=?').get(owner) as Row | undefined
@@ -43,11 +26,7 @@ export function agentSettings(db: Database, owner: string) {
   return { ...settings, revision: current?.revision ?? 0, apiKeyConfigured: Boolean(current?.encrypted_key), keyStorageAvailable: Boolean(encryptionKey(db)) }
 }
 export function encryptCredential(db: Database, scope: string[], secret: string): string {
-  const key = encryptionKey(db); if (!key) throw new AgentSettingsError('agent_key_storage_unavailable')
-  const iv = randomBytes(12), cipher = createCipheriv('aes-256-gcm', key, iv)
-  cipher.setAAD(Buffer.from(JSON.stringify(scope)))
-  const ciphertext = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()])
-  return [iv, cipher.getAuthTag(), ciphertext].map(value => value.toString('base64')).join('.')
+  return createCredentialCodec(()=>encryptionKey(db)).encrypt(scope,secret)
 }
 export function agentApiKey(db: Database, owner: string): string | undefined {
   const value = row(db, owner)?.encrypted_key
@@ -55,15 +34,7 @@ export function agentApiKey(db: Database, owner: string): string | undefined {
   return decryptCredential(db, [owner, 'openai'], value)
 }
 export function decryptCredential(db: Database, scope: string[], value: string): string {
-  const key = encryptionKey(db); if (!key) throw new AgentSettingsError('agent_key_storage_unavailable')
-  try {
-    const [iv, tag, encrypted] = value.split('.').map(value => Buffer.from(value, 'base64'))
-    if (!iv || !tag || !encrypted) throw new Error('Invalid ciphertext')
-    const cipher = createDecipheriv('aes-256-gcm', key, iv)
-    cipher.setAAD(Buffer.from(JSON.stringify(scope)))
-    cipher.setAuthTag(tag)
-    return Buffer.concat([cipher.update(encrypted), cipher.final()]).toString('utf8')
-  } catch { throw new AgentSettingsError('agent_key_storage_unavailable') }
+  return createCredentialCodec(()=>encryptionKey(db)).decrypt(scope,value)
 }
 export function saveAgentSettings(db: Database, owner: string, input: z.infer<typeof AgentSettingsUpdateSchema>) {
   return db.transaction(() => {

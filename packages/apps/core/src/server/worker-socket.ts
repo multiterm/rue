@@ -3,11 +3,13 @@ import { z } from 'zod'
 import type { ServerContext } from './context.js'
 import type { SocketRouter } from './socket-router.js'
 import {refreshWorkerProject} from './project-authority.js'
-import { connectWorker, heartbeatWorker, validateWorker, WorkerError, workerHealthSchema } from '../storage/workers.js'
+import {sessionServices} from './session-services.js'
+import { WorkerError, workerHealthSchema } from '../storage/workers.js'
 
 const authSchema = z.object({ type: z.literal('authenticate'), protocol: z.literal(1), id: z.string().uuid(), token: z.string().regex(/^rue_worker_[A-Za-z0-9_-]{43}$/), instance: z.string().uuid() }).strict()
 const heartbeatSchema = z.object({ type: z.literal('heartbeat'), requestId: z.string().uuid(), generation: z.number().int().positive(), health: workerHealthSchema }).strict()
 export function installWorkerSocket(router: SocketRouter, ctx: ServerContext) {
+  const store=sessionServices(ctx).execution.workers
   const sockets = new WebSocketServer({ noServer: true, maxPayload: 8192, perMessageDeflate: false })
   const unregister = router.register('/worker-client/socket', (request, socket, head) => {
     if (sockets.clients.size >= 128) { socket.end('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n'); return }
@@ -33,10 +35,21 @@ export function installWorkerSocket(router: SocketRouter, ctx: ServerContext) {
       termination = setTimeout(() => ws.terminate(), 1000); termination.unref()
     }
     const deadline = setTimeout(() => ws.terminate(), 10000)
-    const watchdog = setInterval(() => {
-      if (!authority || closing) return
-      try { validateWorker(ctx.db, authority.id, authority.token, authority.instance, authority.generation) } catch (e) { fail(e) }
-    }, 5000)
+    let checking=false,recheck=false,notifyChange=false
+    const checkAuthority=(changed=false)=>{
+      recheck=true;notifyChange ||= changed
+      if(checking)return
+      checking=true
+      void (async()=>{try{
+        while(recheck&&authority&&!closing&&ws.readyState===WebSocket.OPEN){
+          recheck=false;const current=authority
+          await store.validate(current.id,current.token,current.instance,current.generation)
+          if(authority!==current||closing||ws.readyState!==WebSocket.OPEN)return
+          if(!recheck&&notifyChange){notifyChange=false;send({type:'changed'})}
+        }
+      }catch(error){fail(error)}finally{checking=false}})()
+    }
+    const watchdog = setInterval(() => checkAuthority(), 5000)
     ws.on('error', () => {})
     ws.on('close', () => { clearTimeout(deadline); clearTimeout(termination); clearInterval(watchdog); unsubscribe?.(); authority = undefined })
     ws.on('message', (raw, binary) => {
@@ -49,14 +62,15 @@ export function installWorkerSocket(router: SocketRouter, ctx: ServerContext) {
         const frame: unknown = JSON.parse(raw.toString())
         if (!authority) {
           const auth = authSchema.parse(frame)
-          await refreshWorkerProject(ctx.db,ctx.projectAuthority,auth.id,auth.token)
+          await refreshWorkerProject(store,ctx.projectAuthority,auth.id,auth.token)
           if(closing||ws.readyState!==WebSocket.OPEN)return
-          const lease = connectWorker(ctx.db, auth.id, auth.token, auth.instance)
+          const lease = await store.connect(auth.id, auth.token, auth.instance)
+          if(closing||ws.readyState!==WebSocket.OPEN)return
           authority = { ...auth, generation: lease.generation, owner: lease.worker.ownerSubject }
           clearTimeout(deadline)
           unsubscribe = ctx.bus.on<{ workerId: string }>('worker.control.changed', event => {
             if (!authority || event.payload.workerId !== authority.id) return
-            try { validateWorker(ctx.db, authority.id, authority.token, authority.instance, authority.generation); send({ type: 'changed' }) } catch (e) { fail(e) }
+            checkAuthority(true)
           })
           send({ type: 'ready', lease })
           ctx.bus.publish('worker.updated', { ownerSubject: authority.owner, workerId: authority.id })
@@ -64,9 +78,11 @@ export function installWorkerSocket(router: SocketRouter, ctx: ServerContext) {
         }
         const request = heartbeatSchema.parse(frame)
         if (request.generation !== authority.generation) throw new WorkerError(409, 'worker_session_fenced')
-        await refreshWorkerProject(ctx.db,ctx.projectAuthority,authority.id,authority.token)
+        await refreshWorkerProject(store,ctx.projectAuthority,authority.id,authority.token)
         if(closing||ws.readyState!==WebSocket.OPEN||!authority)return
-        const lease = heartbeatWorker(ctx.db, authority.id, authority.token, authority.instance, authority.generation, request.health)
+        const current=authority
+        const lease = await store.heartbeat(current.id, current.token, current.instance, current.generation, request.health)
+        if(authority!==current||closing||ws.readyState!==WebSocket.OPEN)return
         send({ type: 'heartbeat_ack', requestId: request.requestId, lease })
         ctx.bus.publish('worker.updated', { ownerSubject: authority.owner, workerId: authority.id })
       } catch (e) { fail(e) }finally{processing=false}})()

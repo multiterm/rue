@@ -39,6 +39,12 @@ test('missing, plaintext, malformed, mismatched and conflicting keys fail withou
   assert.ok(!error.message.includes(values.RUE_PUSH_PRIVATE_KEY));return true
  })
 })
+test('PostgreSQL API secrets are an encrypted all-or-nothing tuple preserving the original key',async()=>{
+ const database={RUE_STORAGE_BACKEND:'postgres',RUE_DATABASE_URL:'postgres://fixture:fixture-password@database.test/rue',RUE_SETTINGS_ENCRYPTION_KEY:Buffer.alloc(32,7).toString('base64')}
+ assert.deepEqual(await decodePushRuntime(encode({...values,...database}),wrapping.privateKey,{},codec),{...values,...database})
+ for(const invalid of [{...database,RUE_STORAGE_BACKEND:'sqlite'},{...database,RUE_SETTINGS_ENCRYPTION_KEY:'invalid'},{...database,RUE_DATABASE_URL:'https://example.test'},{RUE_DATABASE_URL:database.RUE_DATABASE_URL}])await assert.rejects(decodePushRuntime(encode({...values,...invalid}),wrapping.privateKey,{},codec))
+ await assert.rejects(decodePushRuntime(encode({...values,...database}),wrapping.privateKey,{RUE_DATABASE_URL:'postgres://other:secret@other.test/rue'},codec))
+})
 test('offline migration preserves VAPID identity, isolates the wrapping key and never overwrites a bundle',async()=>{
  const directory=mkdtempSync(join(tmpdir(),'rue-push-migration-test-'))
  try{

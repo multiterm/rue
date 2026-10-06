@@ -8,6 +8,7 @@ import {createPostgresWorkerRepository} from '../src/postgres/workers.ts'
 import {createPostgresTerminalPairingRepository} from '../src/postgres/terminal-pairing.ts'
 import {createPostgresMcpRepository} from '../src/postgres/mcp.ts'
 import {createPostgresManagedAgentRepository} from '../src/postgres/managed-agents.ts'
+import {createPostgresConversationRepository} from '../src/postgres/conversations.ts'
 import {managedAgents,managedOperations,terminalConnections,mcpProfiles,sessions,providerKeys,providerKeyGrants,workers,projectBindings} from '../src/postgres/schema.ts'
 import {workerHealthSchema} from '../../../apps/core/src/storage/workers.ts'
 import {managedCreateSchema,managedChangeSchema,managedReportSchema} from '../../../apps/core/src/storage/managed-agents.ts'
@@ -44,6 +45,10 @@ test('PostgreSQL managed lifecycle and atomic MCP revocation',{skip:!adminUrl},a
   await t.test('concurrent creation is idempotent, owner-isolated and creates one linked conversation',async()=>{
    const f=await fixture(),results=await Promise.all(Array.from({length:6},()=>store.create(f.owner,f.input,now)))
    assert.equal(new Set(results.map(r=>r.agent.id)).size,1)
+   const conversations=createPostgresConversationRepository(db),agent=results[0]!.agent
+   assert.equal((await conversations.get(f.owner,agent.sessionId!))?.terminalConnectionId,agent.connectionId)
+   await assert.rejects(conversations.delete(f.owner,agent.sessionId!),/managed_agent_destroy_required/)
+   assert.equal(await conversations.delete('other-owner',agent.sessionId!),false)
    assert.equal((await db.select().from(sessions).where(eq(sessions.ownerSubject,f.owner))).length,1)
    assert.equal((await db.select().from(managedOperations).where(eq(managedOperations.ownerSubject,f.owner))).length,1)
    await assert.rejects(store.create(f.owner,{...f.input,name:'different'},now),/managed_request_conflict/)

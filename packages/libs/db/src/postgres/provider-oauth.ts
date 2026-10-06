@@ -78,16 +78,18 @@ export function createPostgresOAuthRepository(db:RuePostgresDatabase,options:{co
   pending.set(owner,work)
   try{await work}finally{if(pending.get(owner)===work)pending.delete(owner)}
  }
+ async function saveInTransaction(tx:Tx,owner:string,expected:number,input:unknown){
+  const value=options.parseCredential(input)
+  await lockPostgresOwner(tx,owner);if(((await row(tx,owner))?.revision??0)!==expected)return fail(409,'oauth_credential_changed')
+  const values={ownerSubject:owner,provider,encryptedCredential:options.codec.encrypt(scope(owner),JSON.stringify(value)),revision:revision(expected),expiresAt:value.expires,state:'ready',refreshNonce:null,refreshStartedAt:null}
+  await tx.insert(credentials).values(values).onConflictDoUpdate({target:[credentials.ownerSubject,credentials.provider],set:values})
+  await tx.delete(grants).where(grantWhere(owner));await audit(tx,owner,'oauth_save');return metadata(tx,owner)
+ }
  return {
+  saveInTransaction,
   metadata(owner:string){return db.transaction(tx=>metadata(tx,owner),{isolationLevel:'repeatable read',accessMode:'read only'})},
   async save(owner:string,expected:number,input:unknown){
-   const value=options.parseCredential(input)
-   return db.transaction(async tx=>{
-    await lockPostgresOwner(tx,owner);if(((await row(tx,owner))?.revision??0)!==expected)return fail(409,'oauth_credential_changed')
-    const values={ownerSubject:owner,provider,encryptedCredential:options.codec.encrypt(scope(owner),JSON.stringify(value)),revision:revision(expected),expiresAt:value.expires,state:'ready',refreshNonce:null,refreshStartedAt:null}
-    await tx.insert(credentials).values(values).onConflictDoUpdate({target:[credentials.ownerSubject,credentials.provider],set:values})
-    await tx.delete(grants).where(grantWhere(owner));await audit(tx,owner,'oauth_save');return metadata(tx,owner)
-   })
+   return db.transaction(tx=>saveInTransaction(tx,owner,expected,input))
   },
   async remove(owner:string,expected:number){return db.transaction(async tx=>{
    await lockPostgresOwner(tx,owner);if(((await row(tx,owner))?.revision??0)!==expected)return fail(409,'oauth_credential_changed')

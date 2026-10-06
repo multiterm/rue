@@ -7,8 +7,9 @@ import type {ServerContext} from './context.js'
 import {keyResourceOwner,type TenancyKey} from './tenancy-keys.js'
 import {asProjectClaims} from './tenancy-verifier.js'
 import {requestGuard} from './request-guard.js'
-import {createProjectBinding,updateProjectProof,ProjectError} from '../storage/projects.js'
-import {createWorker,WorkerError} from '../storage/workers.js'
+import {ProjectError} from '../storage/projects.js'
+import {WorkerError} from '../storage/workers.js'
+import {sessionServices} from './session-services.js'
 import {workerAccountRoutes} from './routes/workers.js'
 import {managedAgentAccountRoutes} from './routes/managed-agents.js'
 import {mcpAccountRoutes} from './routes/mcp.js'
@@ -46,9 +47,10 @@ export function tenancyKeyApi(ctx:ServerContext,managedAgents:boolean){
   const input=z.object({name:z.string().trim().min(1).max(60).regex(/^[^\x00-\x1f\x7f]+$/),requestId:z.string().uuid(),acknowledgeHostControl:z.literal(true),expectedOwnerSubject:z.string().max(512).optional()}).strict().safeParse(await c.req.json().catch(()=>null));if(!input.success)return c.json({error:'invalid_worker_enrollment'},400)
   const key=c.var.key,owner=keyResourceOwner(key);if(input.data.expectedOwnerSubject&&input.data.expectedOwnerSubject!==owner)return c.json({error:'worker_owner_changed'},409)
   const authority=ctx.projectAuthority!,id=bindingId(authority.verifier.origin,key),claims=asProjectClaims(key)
-  const binding=createProjectBinding(ctx.db,owner,id,authority.verifier.origin,c.var.token,claims,c.var.started)
-  if(!updateProjectProof(ctx.db,id,binding.revision,claims,c.var.started))return c.json({error:'api_key_invalid'},401)
-  const result=createWorker(ctx.db,owner,input.data.name,input.data.requestId,Date.now(),id)
+  const store=sessionServices(ctx).execution
+  const binding=await store.projects.create(owner,id,authority.verifier.origin,c.var.token,claims,c.var.started)
+  if(!await store.projects.updateProof(id,binding.revision,claims,c.var.started))return c.json({error:'api_key_invalid'},401)
+  const result=await store.workers.create(owner,input.data.name,input.data.requestId,undefined,id)
   ctx.bus.publish('worker.updated',{ownerSubject:owner,workerId:result.worker.id});return c.json(result,result.secret?201:200)
  })
  app.route('/workers',workerAccountRoutes())

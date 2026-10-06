@@ -3,7 +3,7 @@ import {bodyLimit} from 'hono/body-limit'
 import type {ServerContext} from '../context.js'
 import {WorkerError} from '../../storage/workers.js'
 import {RelayError} from '../../storage/terminal-relay.js'
-import {runtimeCompactions,claimManagedCompaction,acknowledgeManagedCompaction} from '../../storage/managed-compaction.js'
+import {sessionServices} from '../session-services.js'
 const input=z.object({instance:z.string().uuid()}).strict()
 export function managedCompactionRuntimeRoutes(){
  const app=new OpenAPIHono<{Variables:{ctx:ServerContext}}>()
@@ -21,10 +21,10 @@ export function managedCompactionRuntimeRoutes(){
   const raw=await c.req.json(),body=z.object({instance:z.string().uuid()}).parse(raw)
   const token=c.req.header('authorization')?.match(/^Bearer (rue_terminal_[A-Za-z0-9_-]{43})$/)?.[1]
   if(!token)return c.json({error:'invalid_terminal_credential'},401)
-  const auth={id:z.string().regex(/^term_[A-Za-z0-9_-]{32}$/).parse(c.req.param('id')),token,instance:body.instance},db=c.var.ctx.db
-  if(action==='poll'){input.parse(raw);return c.json({commands:runtimeCompactions(db,auth)})}
-  if(action==='claim'){const value=input.extend({commandId:z.string().uuid()}).strict().parse(raw);return c.json(claimManagedCompaction(db,auth,value.commandId))}
-  if(action==='ack'){const value=input.extend({commandId:z.string().uuid(),nonce:z.string().regex(/^[A-Za-z0-9_-]{43}$/),outcome:z.enum(['succeeded','failed'])}).strict().parse(raw);const command=acknowledgeManagedCompaction(db,auth,value.commandId,value.nonce,value.outcome);const owner=(db.prepare('SELECT owner_subject FROM managed_agents WHERE id=?').get(command.agentId) as {owner_subject:string}).owner_subject;c.var.ctx.bus.publish('managed-agent.updated',{ownerSubject:owner,agentId:command.agentId});return c.json(command)}
+  const auth={id:z.string().regex(/^term_[A-Za-z0-9_-]{32}$/).parse(c.req.param('id')),token,instance:body.instance},services=sessionServices(c.var.ctx),store=services.execution.compaction
+  if(action==='poll'){input.parse(raw);return c.json({commands:await store.runtimeCommands(auth)})}
+  if(action==='claim'){const value=input.extend({commandId:z.string().uuid()}).strict().parse(raw);return c.json(await store.claim(auth,value.commandId))}
+  if(action==='ack'){const value=input.extend({commandId:z.string().uuid(),nonce:z.string().regex(/^[A-Za-z0-9_-]{43}$/),outcome:z.enum(['succeeded','failed'])}).strict().parse(raw);const owner=await services.credentials.transportOwner('terminal',auth);const command=await store.acknowledge(auth,value.commandId,value.nonce,value.outcome);c.var.ctx.bus.publish('managed-agent.updated',{ownerSubject:owner,agentId:command.agentId});return c.json(command)}
   return c.json({error:'invalid_compaction_request'},400)
  })
  return app

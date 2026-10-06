@@ -2,6 +2,7 @@ import type {Database} from 'better-sqlite3'
 import {asProjectClaims,type ProjectVerifier} from './tenancy-verifier.js'
 import {ProjectError,type ProjectAuthorityRepository} from '@multiterm/rue-db'
 import {createSqliteProjectAuthorityRepository} from '../storage/sqlite-project-authority.js'
+import type {ExecutionServices} from './execution-services.js'
 import {workerProjectBinding,WorkerError} from '../storage/workers.js'
 export class ProjectAuthority {
  private pending=new Map<string,Promise<void>>()
@@ -28,15 +29,15 @@ export class ProjectAuthority {
   if(row.bindingId)await this.owned(row.bindingId,owner)
  }
 }
-export async function refreshWorkerProject(db:Database,authority:ProjectAuthority|undefined,id:string,token:string){
- const binding=workerProjectBinding(db,id,token) // Authenticate before any verifier I/O.
+export async function refreshWorkerProject(db:Database|Pick<ExecutionServices['workers'],'projectBinding'>,authority:ProjectAuthority|undefined,id:string,token:string){
+ const binding=await ('prepare' in db?workerProjectBinding(db,id,token):db.projectBinding(id,token)) // Authenticate before any verifier I/O.
  if(!binding)return
  if(!authority)throw new WorkerError(401,'worker_project_fenced')
  try{await authority.refresh(binding)}catch(error){if(error instanceof ProjectError)throw new WorkerError(401,'worker_project_fenced');throw error}
 }
-export async function refreshOwnedWorkerProject(db:Database,authority:ProjectAuthority|undefined,id:string,owner:string){
+export async function refreshOwnedWorkerProject(db:Database|Pick<ProjectAuthorityRepository,'ownedWorkerBinding'>,authority:ProjectAuthority|undefined,id:string,owner:string){
  if(authority)return authority.ownerWorker(id,owner)
- const row=await createSqliteProjectAuthorityRepository(db).ownedWorkerBinding(id,owner)
+ const row=await ('prepare' in db?createSqliteProjectAuthorityRepository(db):db).ownedWorkerBinding(id,owner)
  if(!row)throw new WorkerError(404,'worker_not_found')
  if(row.bindingId)throw new WorkerError(401,'worker_project_fenced')
 }

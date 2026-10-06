@@ -18,13 +18,19 @@ export interface AuthPrincipal {
 }
 
 export interface ServerContext {
-  db: Database
+  sessions?: import('./session-services.js').SessionServices
+  /** Present only in the temporary SQLite compatibility backend. */
+  db?: Database
+  storage?: {engine:'sqlite'|'postgres';readonly available:boolean;close():Promise<void>;failure?:Promise<void>}
+  credentialKey?:()=>Buffer|undefined
+  stopping?:boolean
   pushTransport?:import('./web-push.js').PushTransport
   /** Drizzle ORM facade over the same SQLite connection used by legacy stores. */
   orm?: RueDatabase
   config: Config
   bus: Bus
   activeRuns?: Map<string, number>
+  historyResets?: Set<string>
   terminalSocketEnabled?: boolean
   projectAuthority?:ProjectAuthority
 }

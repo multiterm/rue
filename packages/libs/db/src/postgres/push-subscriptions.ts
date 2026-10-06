@@ -1,14 +1,31 @@
 import {createHash,randomUUID} from 'node:crypto'
-import {and,count,eq,sql} from 'drizzle-orm'
+import {and,asc,count,eq,gt,sql} from 'drizzle-orm'
 import type {RuePostgresDatabase} from './client.js'
 import type {CredentialCodec} from './projects.js'
 import {lockPostgresOwner} from './owner-lock.js'
 import {pushSubscriptions} from './schema.js'
 export interface PushSubscription {endpoint:string;keys:{p256dh:string;auth:string}}
+export type PushTestClaim={status:'ready';id:string;encryptedSubscription:string}|{status:'missing'|'rate_limited'}
 /** Validation must enforce the API's endpoint allowlist and actual P-256/auth key
  * validation. Encryption retains the original owner/web-push/subscription scope. */
 export function createPostgresPushSubscriptionRepository(db:RuePostgresDatabase,options:{validate:(raw:unknown)=>PushSubscription;codec:Pick<CredentialCodec,'encrypt'>}){
  return {
+  async list(owner:string,now=Date.now()){
+   if(!owner||owner.length>512)throw Error('push_owner_required')
+   return db.select({deviceId:pushSubscriptions.deviceId,expiresAt:pushSubscriptions.expiresAt}).from(pushSubscriptions)
+    .where(and(eq(pushSubscriptions.ownerSubject,owner),gt(pushSubscriptions.expiresAt,now))).orderBy(asc(pushSubscriptions.deviceId))
+  },
+  async claimTest(owner:string,deviceId:string,at?:number):Promise<PushTestClaim>{
+   return db.transaction(async tx=>{
+    await lockPostgresOwner(tx,owner)
+    const now=at??Date.now()
+    const [row]=await tx.select().from(pushSubscriptions).where(and(eq(pushSubscriptions.ownerSubject,owner),eq(pushSubscriptions.deviceId,deviceId),gt(pushSubscriptions.expiresAt,now))).for('update')
+    if(!row)return {status:'missing'}
+    if(row.lastTestAt!==null&&row.lastTestAt>=now-30_000)return {status:'rate_limited'}
+    await tx.update(pushSubscriptions).set({lastTestAt:now}).where(eq(pushSubscriptions.id,row.id))
+    return {status:'ready',id:row.id,encryptedSubscription:row.encryptedSubscription}
+   })
+  },
   save(owner:string,deviceId:string,input:unknown,at?:number){
    const value=options.validate(input),hash=createHash('sha256').update(value.endpoint).digest('hex')
    return db.transaction(async tx=>{

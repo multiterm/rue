@@ -1,4 +1,5 @@
 import type {Database} from 'better-sqlite3'
+import type {UsageReport} from '@multiterm/rue-db/postgres'
 import {createHmac} from 'node:crypto'
 import {z} from 'zod'
 import {encryptionKey} from './agent-settings.js'
@@ -19,8 +20,8 @@ export function recordAgentUsage(db:Database,owner:string,session:string,connect
  if(event.credentialId&&!db.prepare('SELECT 1 FROM usage_credentials WHERE id=? AND owner_subject=? AND provider=?').get(event.credentialId,owner,event.provider))throw Error('Invalid usage credential')
  return db.prepare(`INSERT OR IGNORE INTO agent_usage_events(owner_subject,session_id,connection_id,event_id,provider,model,credential_id,time,input_tokens,output_tokens,cache_read_tokens,cache_write_tokens,cost_usd) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(owner,session,connection,event.eventId,event.provider,event.model,event.credentialId,event.time,event.input,event.output,event.cacheRead,event.cacheWrite,event.costUsd).changes===1
 }
-export function agentUsage(db:Database,owner:string,session:string,days:number,now=Date.now()){
+export function agentUsage(db:Database,owner:string,session:string,days:number,now=Date.now()):UsageReport{
  const from=Math.floor(now/86400000)*86400000-(days-1)*86400000,to=now
- const rows=db.prepare(`SELECT (time/86400000)*86400000 AS time,provider,credential_id AS credentialId,COUNT(*) AS requests,SUM(input_tokens) AS input,SUM(output_tokens) AS output,SUM(cache_read_tokens) AS cacheRead,SUM(cache_write_tokens) AS cacheWrite,SUM(cost_usd) AS costUsd,SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unpricedRequests FROM agent_usage_events WHERE owner_subject=? AND session_id=? AND time>=? AND time<=? GROUP BY 1,2,3 ORDER BY 1,2,3`).all(owner,session,from,to)
+ const rows=db.prepare(`SELECT (time/86400000)*86400000 AS time,provider,credential_id AS credentialId,COUNT(*) AS requests,SUM(input_tokens) AS input,SUM(output_tokens) AS output,SUM(cache_read_tokens) AS cacheRead,SUM(cache_write_tokens) AS cacheWrite,SUM(cost_usd) AS costUsd,SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unpricedRequests FROM agent_usage_events WHERE owner_subject=? AND session_id=? AND time>=? AND time<=? GROUP BY 1,2,3 ORDER BY 1,2,3`).all(owner,session,from,to) as UsageReport['rows']
  return {ownerSubject:owner,sessionId:session,from,to,timezone:'UTC',basis:'runtime-estimate',rows}
 }

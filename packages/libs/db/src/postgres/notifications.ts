@@ -51,6 +51,11 @@ export function createPostgresNotificationRepository(db:RuePostgresDatabase){
     return {items,unread:total!.unread,nextCursor:rows.length>limit&&last?{createdAt:last.createdAt,id:last.id}:null}
    },{isolationLevel:'repeatable read',accessMode:'read only'})
   },
+  async markAllRead(owner:string,now=Date.now()){
+   ownerRequired(owner);timestamp(now)
+   await db.execute(sql`UPDATE notifications n SET read_at=${now} FROM sessions s
+    WHERE n.owner_subject=${owner} AND n.read_at IS NULL AND s.id=n.session_id AND s.owner_subject=n.owner_subject`)
+  },
   async markRead(owner:string,id:string,now=Date.now()){
    ownerRequired(owner);timestamp(now)
    const rows=await db.execute(sql`UPDATE notifications n SET read_at=COALESCE(n.read_at,${now})
@@ -69,6 +74,25 @@ export type PushDeliveryClaim = {
  * an expired send can have an uncertain outcome. Never send while holding a DB transaction. */
 export function createPostgresPushDeliveryRepository(db:RuePostgresDatabase){
  return {
+  async prune(now=Date.now()){
+   timestamp(now)
+   await db.transaction(async tx=>{
+    await tx.execute(sql`DELETE FROM push_subscriptions WHERE expires_at<=${now}`)
+    await tx.execute(sql`UPDATE push_deliveries SET state='failed',lease_id=NULL,lease_until=NULL
+     WHERE state IN ('pending','sending') AND notification_id IN (SELECT id FROM notifications WHERE created_at<=${now-PUSH_MAX_AGE_MS})`)
+   })
+  },
+  async discardSubscription(claim:PushDeliveryClaim,now=Date.now()){
+   timestamp(now)
+   // A late 404/410 from an old send cannot delete a refreshed subscription or
+   // one now held by another dispatcher. Never delete by subscription ID alone.
+   const rows=await db.execute(sql`DELETE FROM push_subscriptions s USING push_deliveries d,notifications n,sessions chat
+    WHERE s.id=${claim.subscriptionId} AND s.owner_subject=${claim.ownerSubject} AND s.encrypted_subscription=${claim.encryptedSubscription}
+     AND d.subscription_id=s.id AND d.notification_id=${claim.notificationId} AND d.state='sending'
+     AND d.lease_id=${claim.leaseId} AND d.lease_until>${now}
+     AND n.id=d.notification_id AND n.owner_subject=s.owner_subject AND chat.id=n.session_id AND chat.owner_subject=n.owner_subject RETURNING s.id`)
+   return rows.length===1
+  },
   async claimNext(now=Date.now()):Promise<PushDeliveryClaim|undefined>{
    timestamp(now)
    const rows=await db.execute<PushDeliveryClaim>(sql`

@@ -2,6 +2,7 @@ import {runtimeRolloutAccountRoutes,runtimeRolloutWorkerRoutes,runtimeRolloutTer
 import {notificationRoutes} from './routes/notifications.js'
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { cors } from 'hono/cors'
+import {HTTPException} from 'hono/http-exception'
 import { logger } from 'hono/logger'
 import { bodyLimit } from 'hono/body-limit'
 import { basicAuth } from './auth-middleware.js'
@@ -25,7 +26,7 @@ import { pairingRoutes } from './routes/pairing.js'
 import { terminalClientRoutes, terminalAccountRoutes } from './routes/terminal-pairing.js'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { appRouter } from '@multiterm/rue-trpc'
-import { createRueDatabase,createSqliteSessionRepository } from '@multiterm/rue-db'
+import { sessionServices } from './session-services.js'
 
 export interface AppOptions {
   ctx: ServerContext
@@ -43,9 +44,17 @@ export interface AppOptions {
  */
 export function createApp(opts: AppOptions): OpenAPIHono<{ Variables: { ctx: ServerContext } }> {
   const app = new OpenAPIHono<{ Variables: { ctx: ServerContext } }>()
+  app.onError((error,c)=>{
+    if(error instanceof HTTPException)return error.getResponse()
+    // Driver errors can embed SQL parameters, transcripts and ciphertext.
+    // Neither HTTP responses nor deployment logs may serialize those errors.
+    if(opts.log)console.error('[rue] request failed')
+    return c.json({error:'internal_error'},500)
+  })
 
   // Attach the shared ctx to every request.
   app.use('*', async (c, next) => {
+    if(opts.ctx.stopping||opts.ctx.storage?.available===false)return c.json({error:'storage_unavailable'},503)
     c.set('ctx', opts.ctx)
     return next()
   })
@@ -111,7 +120,7 @@ export function createApp(opts: AppOptions): OpenAPIHono<{ Variables: { ctx: Ser
     endpoint: '/trpc',
     req: c.req.raw,
     router: appRouter,
-    createContext: () => ({sessions:createSqliteSessionRepository(opts.ctx.orm??createRueDatabase(opts.ctx.db)),principalSubject:c.get('principal').subject,keyname:{apiUrl:opts.ctx.config.keyname.apiUrl,clientId:opts.ctx.config.keyname.clientId,clientSecret:opts.ctx.config.keyname.clientSecret}}),
+    createContext: () => ({sessions:sessionServices(opts.ctx).conversations,principalSubject:c.get('principal').subject,keyname:{apiUrl:opts.ctx.config.keyname.apiUrl,clientId:opts.ctx.config.keyname.clientId,clientSecret:opts.ctx.config.keyname.clientSecret}}),
   }))
 
   // OpenAPI document. SSE route doesn't appear here (intentional; see event.ts).
