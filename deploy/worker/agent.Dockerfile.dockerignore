@@ -16,6 +16,9 @@
 !extensions/rue/provider-keys.ts
 !extensions/rue/socket.ts
 !extensions/rue/status.ts
+!extensions/rue/runtime-info.ts
+!extensions/rue/git-status.ts
+!extensions/rue/usage.ts
 !deploy/
 !deploy/worker/
 !deploy/worker/agent.Dockerfile

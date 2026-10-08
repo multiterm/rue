@@ -6,7 +6,7 @@ FROM oven/bun:1.3.14 AS build
 WORKDIR /src
 COPY packages/apps/agent-runtime/src packages/apps/agent-runtime/src
 COPY packages/libs/sdk/src/filesystem.ts packages/libs/sdk/src/filesystem.ts
-COPY extensions/rue/runtime-info.ts extensions/rue/model-error.ts extensions/rue/bridge.ts extensions/rue/provider-keys.ts extensions/rue/socket.ts extensions/rue/status.ts extensions/rue/
+COPY extensions/rue/runtime-info.ts extensions/rue/model-error.ts extensions/rue/bridge.ts extensions/rue/provider-keys.ts extensions/rue/socket.ts extensions/rue/status.ts extensions/rue/git-status.ts extensions/rue/usage.ts extensions/rue/
 RUN bun build packages/apps/agent-runtime/src/guardian.ts packages/apps/agent-runtime/src/runner.ts packages/apps/agent-runtime/src/mcp.ts --target=node --packages=external --outdir=/out
 
 FROM node:24-bookworm-slim

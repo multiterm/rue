@@ -5,6 +5,10 @@ on:
       - '.github/workflows/agent-runtime.yml'
       - 'deploy/worker/agent.Dockerfile*'
       - 'packages/apps/agent-runtime/**'
+      - 'packages/libs/sdk/src/filesystem.ts'
+      - 'extensions/rue/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - 'scripts/deployment/runtime-release-manifest.mjs'
       - 'quality/runtime-release-manifest.node.test.mjs'
   workflow_dispatch:
