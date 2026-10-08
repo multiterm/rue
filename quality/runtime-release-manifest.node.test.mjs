@@ -42,8 +42,13 @@ test('runtime image includes status and usage dependencies in its bounded build 
   assert.ok(ignore.split('\n').includes('!extensions/rue/'+name))
  }
 })
-test('runtime npm installation retains the workspace affected-version security floors',()=>{
+test('runtime production installation retains the workspace affected-version security floors',()=>{
  const docker=source('deploy/worker/agent.Dockerfile'),workspace=source('pnpm-workspace.yaml')
+ assert.ok(docker.includes(JSON.parse(source('package.json')).packageManager))
+ assert.ok(docker.includes('pnpm install --prod --no-optional --ignore-scripts'))
+ assert.ok(docker.includes('"pnpm-workspace.yaml"'))
+ assert.ok(docker.includes('minimumReleaseAge:0,overrides:'))
+ assert.ok(workspace.includes('minimumReleaseAge: 0'))
  for(const [range,version] of [['undici@>=8.0.0 <8.10.2','8.10.2'],['brace-expansion@>=5.0.0 <5.0.12','5.0.12']]){
   assert.ok(workspace.includes(`'${range}': ${version}`))
   assert.ok(docker.includes(`${JSON.stringify(range)}:${JSON.stringify(version)}`))
