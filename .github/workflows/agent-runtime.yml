@@ -1,0 +1,148 @@
+name: Agent runtime release
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/agent-runtime.yml'
+      - 'deploy/worker/agent.Dockerfile*'
+      - 'packages/apps/agent-runtime/**'
+      - 'scripts/deployment/runtime-release-manifest.mjs'
+      - 'quality/runtime-release-manifest.node.test.mjs'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish tested development images and their immutable release manifest
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: agent-runtime-release
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.repository == 'multiterm/rue' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/develop')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.4.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter './packages/libs/**' -r exec rune build
+      - run: pnpm --filter @multiterm/rue-agent-runtime typecheck
+      - run: pnpm --filter @multiterm/rue-agent-runtime test
+      - run: node --test quality/runtime-release-manifest.node.test.mjs
+      - name: Build the pinned runtime on its native architecture
+        env:
+          SOURCE_REVISION: ${{ github.sha }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          PI_VERSION=$(node -p 'require("./packages/apps/agent-runtime/package.json").dependencies["@earendil-works/pi-coding-agent"]')
+          docker build --build-arg "PI_VERSION=$PI_VERSION" \
+            --label "io.rue.source-revision=$SOURCE_REVISION" \
+            --label "org.opencontainers.image.source=https://github.com/multiterm/rue" \
+            --label "org.opencontainers.image.revision=$SOURCE_REVISION" \
+            -f deploy/worker/agent.Dockerfile -t "rue-runtime-test:$ARCH" .
+          docker image inspect "rue-runtime-test:$ARCH" --format '{{.Architecture}}' | grep -Fx "$ARCH"
+          # No grants, sockets, host mounts, provider keys or network in the smoke container.
+          docker run --rm --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges --user 1000:1000 \
+            --memory 512m --cpus 1 --pids-limit 128 \
+            --tmpfs /tmp:rw,nosuid,nodev,noexec,size=64m \
+            --env HOME=/tmp --entrypoint node "rue-runtime-test:$ARCH" \
+            --input-type=module -e 'await import("@earendil-works/pi-coding-agent"); await import("@earendil-works/pi-ai"); console.log("Runtime SDK imports passed")'
+          # Audit the image's actual npm dependency tree, not only the pnpm workspace.
+          timeout 180 docker run --rm --read-only --cap-drop ALL \
+            --security-opt no-new-privileges --user 1000:1000 \
+            --memory 512m --cpus 1 --pids-limit 128 \
+            --tmpfs /tmp:rw,nosuid,nodev,noexec,size=64m \
+            --env HOME=/tmp --entrypoint npm "rue-runtime-test:$ARCH" \
+            audit --omit=dev --audit-level=high
+          docker save "rue-runtime-test:$ARCH" -o runtime.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-${{ matrix.arch }}
+          path: runtime.tar
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+  publish:
+    needs: build
+    if: inputs.publish && github.repository == 'multiterm/rue' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: runtime-*
+          path: images
+      - name: Publish only the tested images
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+          SOURCE_REVISION: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+          for arch in amd64 arm64; do
+            docker load -i "images/runtime-$arch/runtime.tar"
+            tag="ghcr.io/multiterm/rue-agent-runtime:$SOURCE_REVISION-$RUN_ID-$RUN_ATTEMPT-$arch"
+            docker tag "rue-runtime-test:$arch" "$tag"
+            docker push "$tag"
+            docker image inspect "$tag" --format '{{json .}}' > "$arch.json"
+          done
+          node scripts/deployment/runtime-release-manifest.mjs "$SOURCE_REVISION" \
+            packages/apps/agent-runtime/package.json amd64.json arm64.json runtime-release.json
+      - name: Require anonymous digest pulls before advertising availability
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/anonymous-docker"
+          node -e 'for(const r of require("./runtime-release.json").releases)console.log(r.reference)' > references.txt
+          while IFS= read -r reference; do
+            docker --config "$RUNNER_TEMP/anonymous-docker" pull "$reference"
+          done < references.txt
+      - name: Publish immutable development release metadata
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # Never clobber a prior release or move a latest/stable tag on retry.
+          tag="agent-runtime-dev-$SOURCE_REVISION"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo 'This source revision already has a release; refusing to overwrite it.' >&2
+            exit 1
+          fi
+          gh release create "$tag" runtime-release.json --target "$SOURCE_REVISION" \
+            --prerelease --latest=false --title "Agent runtime development $SOURCE_REVISION" \
+            --notes 'Native amd64/arm64 runtime tests passed. Digest-pinned artifacts only; publication does not authorize restarting agents.'
+      - name: Remove registry credentials
+        if: always()
+        run: docker logout ghcr.io
