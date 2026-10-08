@@ -41,6 +41,8 @@ export interface ToolCall {
 
 export interface ChatRequest {
   readonly apiKey: string
+  /** Per-response usage when the provider adapter supplies it; never cumulative counters. */
+  readonly onUsage?: (message: unknown) => void
   readonly model: string
   readonly messages: ReadonlyArray<ChatMessage>
   readonly tools?: ReadonlyArray<ToolDefinition>

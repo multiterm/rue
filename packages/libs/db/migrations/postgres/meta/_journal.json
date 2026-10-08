@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790187346783,
+      "tag": "0000_conversation_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790187540156,
+      "tag": "0001_message_role_constraint",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790187540157,
+      "tag": "0002_domain_parity",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790904000000,
+      "tag": "0003_lossless_conversation_json",
+      "breakpoints": true
+    }
+  ]
+}

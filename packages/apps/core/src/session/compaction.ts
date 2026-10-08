@@ -5,13 +5,13 @@ import { estimateConversationTokens } from './tokens.js'
 const TRUNCATION_NOTE =
   '[Earlier conversation was truncated to fit the context window.]'
 
-/** Estimate the token count of a conversation. Counts plain-text content only. */
+/** Approximate text tokens plus an allowance per image (provider costs vary). */
 export function estimateTokensForConversation(
   conversation: ReadonlyArray<ChatMessage>,
 ): number {
   return estimateConversationTokens(
-    conversation.map((m) => (typeof m.content === 'string' ? m.content : '')),
-  )
+    conversation.map(m => typeof m.content === 'string' ? m.content : m.content.filter(p => p.type === 'text').map(p => p.text).join('')),
+  ) + conversation.reduce((sum, m) => sum + (typeof m.content === 'string' ? 0 : m.content.filter(p => p.type === 'image_url').length * 1024), 0)
 }
 
 /**

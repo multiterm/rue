@@ -1,0 +1,28 @@
+# Fail closed even with the legacy builder, which ignores Dockerfile-specific
+# ignore files. Add explicit contexts for future images; never send deployment
+# state, credentials, dependencies or linked worktrees to an image builder.
+**
+!deploy/
+!deploy/worker/
+!deploy/worker/Dockerfile
+!deploy/worker/Dockerfile.dockerignore
+!docker/
+!docker/images/
+!docker/images/Dockerfile.sandblocks-e2e
+!quality/
+!quality/app-contract.ts
+!quality/app-playwright.ts
+!quality/api.app.playwright.ts
+!quality/webapp.app.playwright.ts
+!quality/site.app.playwright.ts
+!quality/docs.app.playwright.ts
+!quality/playwright.config.ts
+!packages/
+!packages/apps/
+!packages/apps/worker/
+!packages/apps/worker/src/
+!packages/apps/worker/src/*.ts
+!packages/libs/
+!packages/libs/sdk/
+!packages/libs/sdk/src/
+!packages/libs/sdk/src/filesystem.ts

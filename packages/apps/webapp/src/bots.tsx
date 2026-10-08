@@ -9,4 +9,4 @@ export const botPalette=[
   {name:'Expense Manager',role:'Receipt filing',color:'var(--rue-bot-6)',shape:'square'},
 ] as const
 export function profileFor(session:RueSession,index:number){const base=botPalette[index%botPalette.length];const description=typeof session.meta.description==='string'&&session.meta.description.trim()?session.meta.description:base.role;return{...base,name:session.title||base.name,role:description}}
-export function BotAvatar({index=0,size='md'}:{index?:number;size?:'sm'|'md'|'lg'}){const bot=botPalette[index%botPalette.length];return <span aria-hidden="true" className={`bot-avatar bot-avatar-${size} bot-shape-${bot.shape}`} style={{'--bot-color':bot.color} as CSSProperties}><i/><i/></span>}
+export function BotAvatar({index=0,size='md',color}:{index?:number;size?:'sm'|'md'|'lg';color?:string}){const bot=botPalette[index%botPalette.length];return <span aria-hidden="true" className={`bot-avatar bot-avatar-${size} bot-shape-${bot.shape}`} style={{'--bot-color':color??bot.color} as CSSProperties}><i/><i/></span>}

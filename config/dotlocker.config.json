@@ -1,0 +1,12 @@
+{
+  "server": "https://preview.dotlocker.dev",
+  "org": "multiterm",
+  "repo": "rue",
+  "targetDir": ".locker/api",
+  "autoDetect": true,
+  "runtimeMap": {
+    "development": "dev",
+    "preview": "preview",
+    "production": "prod"
+  }
+}

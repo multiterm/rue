@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "description": "Rue core — HTTP server, agentic engine, tools, providers, persistence. CLI entry for `rue serve`, `rue run`, `rue tui`, etc.",
   "private": true,
+  "scripts": {
+    "test:push": "node --import tsx --test tests/web-push.node.ts"
+  },
   "type": "module",
   "main": "src/index.ts",
   "bin": {
@@ -18,18 +21,23 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
+    "@earendil-works/pi-agent-core": "0.85.1",
+    "@earendil-works/pi-ai": "0.85.1",
     "@hono/node-server": "^1.14.0",
     "@hono/zod-openapi": "^1.4.0",
     "@multiterm/rue-db": "workspace:*",
+    "@multiterm/rue-sdk": "workspace:*",
     "@multiterm/rue-trpc": "workspace:*",
     "@multiterm/rue-tui": "workspace:*",
     "@trpc/server": "catalog:",
     "better-sqlite3": "^11.10.0",
-    "hono": "^4.11.0",
+    "hono": "^4.13.7",
     "tsx": "catalog:",
+    "ws": "8.21.3",
     "xdg-basedir": "^5.1.0",
     "yargs": "^17.7.0",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "web-push": "3.6.7"
   },
   "optionalDependencies": {
     "keytar": "^7.9.0"
@@ -38,8 +46,10 @@
     "@playwright/test": "catalog:",
     "@types/better-sqlite3": "^7.6.0",
     "@types/node": "catalog:",
+    "@types/ws": "^8.18.1",
     "@types/yargs": "^17.0.0",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@types/web-push": "3.6.4"
   }
 }

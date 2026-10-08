@@ -7,6 +7,7 @@
     "@expo/metro-runtime": "~57.0.3",
     "@multiterm/rue-gds": "workspace:*",
     "@multiterm/rue-sdk": "workspace:*",
+    "@multiterm/rue-ui": "workspace:*",
     "expo": "^57.0.2",
     "expo-auth-session": "~57.0.0",
     "expo-camera": "~57.0.4",

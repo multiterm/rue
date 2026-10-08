@@ -1,5 +1,6 @@
-import type { Database } from 'better-sqlite3'
-import { randomBytes } from 'node:crypto'
+import type { SessionServices } from '../server/session-services.js'
+import { createCoalescingWriter } from './coalescing-writer.js'
+import { randomBytes,randomUUID } from 'node:crypto'
 import type { Bus } from '../bus/index.js'
 import {
   type ChatMessage,
@@ -7,7 +8,6 @@ import {
   type Provider,
   isContextOverflow,
 } from '../provider/index.js'
-import { appendPart, listMessages, listSessionParts, updatePart } from '../storage/index.js'
 import type { PartRow } from '../storage/index.js'
 import { compactConversation, estimateTokensForConversation } from './compaction.js'
 
@@ -46,7 +46,8 @@ const MAX_RECOVERIES = 3
 const ESCALATED_MAX_OUTPUT_TOKENS = 32_768
 
 export interface RunQueryArgs {
-  db: Database
+  services: Pick<SessionServices,'conversations'|'usage'>
+  ownerSubject: string
   bus: Bus
   /** The assistant message that this run will populate. Must already exist. */
   messageId: string
@@ -75,8 +76,9 @@ export interface RunQueryResult {
 
 export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
   const {
-    db,
-    bus,
+    services,
+    ownerSubject,
+    bus: rawBus,
     messageId,
     sessionId,
     provider,
@@ -88,9 +90,11 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
     systemPrompt,
   } = args
 
+  const bus:Pick<Bus,'publish'>={publish:(type,payload)=>rawBus.publish(type,{...payload,ownerSubject})}
   bus.publish('message.created', { sessionId, messageId, provider: provider.id, model })
 
-  let conversation = buildConversationFromHistory(db, sessionId, systemPrompt)
+  const store=protectedConversationStore(services.conversations)
+  let conversation = await buildConversationFromHistory(store, ownerSubject, sessionId, systemPrompt, messageId)
   let turn = 0
   let recoveries = 0
   let maxTokensOverride: number | undefined
@@ -112,7 +116,7 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
             messageId,
             error: 'Conversation already minimal but still over token budget',
           })
-          await appendErrorPart(db, bus, sessionId, messageId, 'token_budget_exceeded')
+          await appendErrorPart(store, ownerSubject, bus, sessionId, messageId, 'token_budget_exceeded')
           return finalize(finalText, turn, 'token_budget')
         }
         conversation = compacted
@@ -121,7 +125,7 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
 
       // Emit step-start part + bus event.
       const stepStartPartId = randomPartId('stp')
-      appendPart(db, {
+      await store.appendPart(ownerSubject, {
         id: stepStartPartId,
         sessionId,
         messageId,
@@ -140,7 +144,7 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
       // Create a streaming text part — we patch its payload as deltas arrive.
       const textPartId = randomPartId('txt')
       let accumulated = ''
-      appendPart(db, {
+      await store.appendPart(ownerSubject, {
         id: textPartId,
         sessionId,
         messageId,
@@ -155,6 +159,13 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
         payload: { text: '', streaming: true },
       })
 
+      let persisted=''
+      const telemetry:Promise<unknown>[]=[]
+      const stream=createCoalescingWriter(async(text:string)=>{
+        await store.updatePart(ownerSubject,textPartId,{text,streaming:true})
+        bus.publish('part.delta',{ownerSubject,sessionId,messageId,partId:textPartId,delta:text.slice(persisted.length),text})
+        persisted=text
+      })
       let reply: ChatToolResponse
       try {
         reply = await provider.chat(
@@ -164,22 +175,27 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
             messages: conversation,
             signal,
             maxTokens: maxTokensOverride,
+            onUsage:raw=>{
+              telemetry.push((async()=>{
+                const message=raw as {provider:string;model:string;usage?:{input:number;output:number;cacheRead:number;cacheWrite:number;cost?:{total:number}}}
+                if(!message?.usage)return
+                const u=message.usage
+                const credentialId=await services.usage.credential(ownerSubject,message.provider,apiKey)
+                await services.usage.recordCloud(ownerSubject,sessionId,{eventId:randomUUID(),provider:message.provider,model:message.model,credentialId,time:Date.now(),input:u.input,output:u.output,cacheRead:u.cacheRead??0,cacheWrite:u.cacheWrite??0,costUsd:u.cost?.total??null})
+              })().catch(()=>{/* Telemetry failure must never retry or interrupt inference. */}))
+            },
           },
           (delta) => {
             accumulated += delta
-            // Stream-write the running text into the part so reconnecting
-            // clients can fetch the current value without replaying SSE.
-            updatePart(db, textPartId, { text: accumulated, streaming: true })
-            bus.publish('part.delta', {
-              sessionId,
-              messageId,
-              partId: textPartId,
-              delta,
-              text: accumulated,
-            })
+            stream.enqueue(accumulated)
           },
         )
-      } catch (err) {
+        await stream.close()
+      } catch (caught) {
+        let err=caught
+        // Fence queued writes before any final state, including provider failures.
+        // A persistence failure must not trigger another inference request.
+        try{await stream.close()}catch(storageError){err=storageError}
         // Reactive context recovery — try compaction once before bailing.
         if (isContextOverflow(err) && recoveries < MAX_RECOVERIES) {
           const compacted = compactConversation(conversation)
@@ -189,7 +205,7 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
             // Mark the streaming part completed with whatever we have, and
             // do another turn (without bumping `turn` since the request
             // failed before producing meaningful work).
-            updatePart(db, textPartId, { text: accumulated, streaming: false })
+            await store.updatePart(ownerSubject, textPartId, { text: accumulated, streaming: false })
             bus.publish('part.completed', {
               sessionId,
               messageId,
@@ -201,7 +217,8 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
         }
         // Record the error as an error part and finalize.
         await appendErrorPart(
-          db,
+          store,
+          ownerSubject,
           bus,
           sessionId,
           messageId,
@@ -209,7 +226,7 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
           (err as { status?: number }).status,
         )
         // Finalize the half-filled text part too.
-        updatePart(db, textPartId, { text: accumulated, streaming: false })
+        await store.updatePart(ownerSubject, textPartId, { text: accumulated, streaming: false })
         bus.publish('part.completed', {
           sessionId,
           messageId,
@@ -222,11 +239,13 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
           error: err instanceof Error ? err.message : String(err),
         })
         return finalize(finalText || accumulated, turn, 'error')
+      } finally {
+        await Promise.all(telemetry)
       }
 
       // Finalize streaming part with the full text.
       finalText = reply.content || accumulated
-      updatePart(db, textPartId, { text: finalText, streaming: false })
+      await store.updatePart(ownerSubject, textPartId, { text: finalText, streaming: false })
       bus.publish('part.completed', {
         sessionId,
         messageId,
@@ -240,7 +259,7 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
         // The retry asks the model for a complete replacement. Supersede the
         // partial text so clients never concatenate a truncated answer with
         // the replacement response.
-        updatePart(db, textPartId, { text: '', streaming: false, superseded: true })
+        await store.updatePart(ownerSubject, textPartId, { text: '', streaming: false, superseded: true })
         bus.publish('part.completed', {
           sessionId,
           messageId,
@@ -251,7 +270,7 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
         maxTokensOverride = ESCALATED_MAX_OUTPUT_TOKENS
         recoveries++
         const stepFinishId = randomPartId('stp')
-        appendPart(db, {
+        await store.appendPart(ownerSubject, {
           id: stepFinishId,
           sessionId,
           messageId,
@@ -271,7 +290,7 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
       }
 
       const stepFinishId = randomPartId('stp')
-      appendPart(db, {
+      await store.appendPart(ownerSubject, {
         id: stepFinishId,
         sessionId,
         messageId,
@@ -308,7 +327,8 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
     }
   } catch (err) {
     await appendErrorPart(
-      db,
+      store,
+      ownerSubject,
       bus,
       sessionId,
       messageId,
@@ -323,20 +343,33 @@ export async function runQuery(args: RunQueryArgs): Promise<RunQueryResult> {
   }
 }
 
+type ConversationStore=Pick<SessionServices['conversations'],'appendPart'|'updatePart'|'snapshot'>
+function protectedConversationStore(source:SessionServices['conversations']):ConversationStore {
+  async function safe<T>(call:()=>Promise<T>):Promise<T>{
+    try{return await call()}catch{throw new Error('conversation_storage_unavailable')}
+  }
+  return {
+    appendPart:(...args)=>safe(()=>source.appendPart(...args)),
+    updatePart:(...args)=>safe(async()=>{const row=await source.updatePart(...args);if(!row)throw new Error('missing_part');return row}),
+    snapshot:(...args)=>safe(()=>source.snapshot(...args)),
+  }
+}
+
 function finalize(text: string, turns: number, stopReason: RunQueryResult['stopReason']): RunQueryResult {
   return { text, turns, stopReason }
 }
 
 async function appendErrorPart(
-  db: Database,
-  bus: Bus,
+  store: ConversationStore,
+  ownerSubject: string,
+  bus: Pick<Bus,'publish'>,
   sessionId: string,
   messageId: string,
   message: string,
   status?: number,
 ): Promise<void> {
   const id = randomPartId('err')
-  appendPart(db, {
+  await store.appendPart(ownerSubject, {
     id,
     sessionId,
     messageId,
@@ -358,29 +391,44 @@ async function appendErrorPart(
  * non-text parts (tool/file/etc) for the Phase-2 prompt. Phase 3 will
  * thread tool messages back into the conversation.
  */
-function buildConversationFromHistory(
-  db: Database,
+async function buildConversationFromHistory(
+  store: ConversationStore,
+  ownerSubject: string,
   sessionId: string,
   systemPrompt?: string,
-): ChatMessage[] {
-  const messages = listMessages(db, sessionId)
-  const parts = listSessionParts(db, sessionId)
+  beforeMessageId?: string,
+): Promise<ChatMessage[]> {
+  const {messages,parts} = await store.snapshot(ownerSubject,sessionId)
+  const boundary=beforeMessageId?messages.find(message=>message.id===beforeMessageId):undefined
+  if(beforeMessageId&&!boundary)throw new Error('conversation_storage_unavailable')
   const partsByMessage = groupBy(parts, (p) => p.messageId)
   const out: ChatMessage[] = []
   if (systemPrompt) out.push({ role: 'system', content: systemPrompt })
   for (const m of messages) {
+    // A later concurrently admitted turn must not enter this turn's prompt.
+    if(boundary&&m.seq>=boundary.seq)continue
     if (m.role === 'system') {
       // Conversation already contains the system prompt; skip stored ones
       // for now (Phase 4 introduces explicit conversation-system prompts).
       continue
     }
     const mp = partsByMessage.get(m.id) ?? []
-    const text = mp
-      .filter((p) => p.type === 'text')
-      .map((p) => (p.payload.text as string | undefined) ?? '')
-      .join('')
-    if (!text) continue
-    out.push({ role: m.role, content: text })
+    if (m.role === 'user' && mp.some(p => p.type === 'file')) {
+      const content: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = []
+      for (const p of mp) {
+        if (p.type === 'text') content.push({ type: 'text', text: String(p.payload.text ?? '') })
+        else if (p.type === 'file') {
+          const { name, mimeType, data } = p.payload
+          if (typeof data !== 'string') continue
+          if (['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(String(mimeType))) content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${data}` } })
+          else content.push({ type: 'text', text: `[User attachment: ${String(name)}]\n${mimeType === 'text/plain' ? Buffer.from(data, 'base64').toString('utf8').slice(0, 100_000) + (Number(p.payload.size) > 100_000 ? '\n[Attachment truncated to 100,000 characters]' : '') : '[Binary attachment saved in the conversation. This cloud agent cannot inspect its contents; do not claim to have read it.]'}` })
+        }
+      }
+      out.push({ role: m.role, content })
+    } else {
+      const text = mp.filter(p => p.type === 'text').map(p => String(p.payload.text ?? '')).join('')
+      if (text) out.push({ role: m.role, content: text })
+    }
   }
   return out
 }

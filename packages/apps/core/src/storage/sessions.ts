@@ -11,6 +11,7 @@ interface RawSessionRow {
   scopes: string
   parent_id: string | null
   owner_subject: string
+  terminal_connection_id: string | null
   created_at: number
   updated_at: number
   meta: string
@@ -27,6 +28,7 @@ function fromRaw(r: RawSessionRow): SessionRow {
     scopes: JSON.parse(r.scopes) as string[],
     parentId: r.parent_id,
     ownerSubject: r.owner_subject,
+    terminalConnectionId: r.terminal_connection_id,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     meta: JSON.parse(r.meta) as Record<string, unknown>,
@@ -72,14 +74,14 @@ export function createSession(
 
 export function getSession(db: Database, id: string, ownerSubject = 'local'): SessionRow | undefined {
   const row = db
-    .prepare('SELECT * FROM sessions WHERE id = ? AND owner_subject = ?')
+    .prepare('SELECT sessions.*, (SELECT id FROM terminal_connections c WHERE c.session_id=sessions.id AND c.owner_subject=sessions.owner_subject) AS terminal_connection_id FROM sessions WHERE id = ? AND owner_subject = ?')
     .get(id, ownerSubject) as RawSessionRow | undefined
   return row ? fromRaw(row) : undefined
 }
 
 export function listSessions(db: Database, limit = 100, ownerSubject = 'local'): SessionRow[] {
   const rows = db
-    .prepare('SELECT * FROM sessions WHERE owner_subject = ? ORDER BY updated_at DESC LIMIT ?')
+    .prepare('SELECT sessions.*, (SELECT id FROM terminal_connections c WHERE c.session_id=sessions.id AND c.owner_subject=sessions.owner_subject) AS terminal_connection_id FROM sessions WHERE owner_subject = ? ORDER BY updated_at DESC LIMIT ?')
     .all(ownerSubject, limit) as RawSessionRow[]
   return rows.map(fromRaw)
 }

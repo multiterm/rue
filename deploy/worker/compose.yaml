@@ -1,0 +1,42 @@
+name: rue-worker
+services:
+  worker:
+    image: ${RUE_WORKER_IMAGE:-rue-worker:local}
+    build:
+      context: ../..
+      dockerfile: deploy/worker/Dockerfile
+    init: true
+    user: "0:0"
+    restart: unless-stopped
+    stop_grace_period: 20s
+    environment:
+      RUE_WORKER_API_URL: ${RUE_WORKER_API_URL:?Set the Rue HTTPS API origin}
+      RUE_WORKER_ID: ${RUE_WORKER_ID:?Enroll a host in Rue first}
+      RUE_WORKER_SECRET_FILE: /run/secrets/rue_worker
+      RUE_WORKER_STATE_DIR: /var/lib/rue-worker
+      RUE_WORKER_DOCKER_SOCKET: /var/run/docker.sock
+    secrets:
+      - rue_worker
+    volumes:
+      - worker-state:/var/lib/rue-worker
+      - type: bind
+        source: ${RUE_WORKER_DOCKER_SOCKET:-/var/run/docker.sock}
+        target: /var/run/docker.sock
+        bind:
+          create_host_path: false
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+secrets:
+  rue_worker:
+    file: ${RUE_WORKER_SECRET_PATH:?Set a root-owned mode-0600 credential file}
+volumes:
+  worker-state:

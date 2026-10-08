@@ -10,6 +10,7 @@ export interface KeynameBrowserClient {
   ready: Promise<KeynameTokenSet | null>
   signIn(options: { mode: 'modal' | 'redirect'; callbackUri: string }): Promise<KeynameTokenSet | null>
   currentUser(): Promise<KeynameUser | null>
+  session?(): Promise<{authenticated:boolean;session:unknown}>
   getAccessToken(options?: { minValidityMs?: number }): Promise<string | null>
   signOut(): Promise<void>
   closeModal(): void

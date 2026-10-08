@@ -21,6 +21,8 @@ export type PartType =
   | 'error'
 
 export interface SessionRow {
+  /** Derived from the credential binding, never client-editable metadata. */
+  terminalConnectionId?: string | null
   id: string
   title: string
   agent: string | null

@@ -79,7 +79,7 @@ Rue has a functioning core scaffold, authentication integration, SQLite storage,
 
 - Treat React/TanStack/tRPC as the current implementation baseline unless a separate ADR reverses it.
 - Configure reserved Sandblocks branches: `develop` → `develop`, `pre` → `preview`, and `prod` → `production`.
-- Add HMR service commands for `develop`.
+- Add HMR service commands for `development` (Git branch `develop`).
 - Move quality lifecycle gates to local hooks and Sandblocks.
 - Keep GitHub optional and non-gating.
 

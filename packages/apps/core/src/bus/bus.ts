@@ -23,11 +23,14 @@ export class Bus {
   #listeners = new Set<Listener>()
   #history: BusEvent[] = []
   #nextId = 1
+  #historyBytes = 0
+  #sizes = new Map<number,number>()
 
   publish<P>(type: string, payload: P): BusEvent<P> {
     const event: BusEvent<P> = { id: this.#nextId++, type, payload, time: Date.now() }
-    this.#history.push(event)
-    if (this.#history.length > 1000) this.#history.shift()
+    const bytes=Buffer.byteLength(JSON.stringify(event))
+    this.#history.push(event);this.#sizes.set(event.id,bytes);this.#historyBytes+=bytes
+    while(this.#history.length>1000||this.#historyBytes>8*1024*1024){const old=this.#history.shift()!;this.#historyBytes-=this.#sizes.get(old.id)??0;this.#sizes.delete(old.id)}
     for (const fn of this.#listeners) {
       try {
         fn(event)

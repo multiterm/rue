@@ -1,5 +1,5 @@
 version: 2
-name: multiterm-rue
+name: rue
 
 workspace:
   image: node:22-bookworm
@@ -19,15 +19,15 @@ tasks:
   quality-fast:
     command: [corepack, pnpm, exec, rune, quality-fast]
     timeout: 5m
-    inputs: [package.json, pnpm-lock.yaml, quality]
+    inputs: [package.json, pnpm-lock.yaml, Runefile, quality, scripts/review, scripts/deployment]
     outputs: [coverage]
 
 services:
   api:
     root: packages/apps/core
-    command: [env, KEYNAME_AUTH_ENABLED=true, KEYNAME_REQUIRE_AUDIENCE=true, KEYNAME_API_URL=https://api.keyname.dev, KEYNAME_CLIENT_ID=knc_-3y7VPz-x-mHHz1kXyMvTBVW, node, dist/bin.js, serve, --hostname, 0.0.0.0, --port, "4097"]
+    command: [node, ../../../scripts/deployment/api-secret-runtime.mjs, --, env, KEYNAME_AUTH_ENABLED=true, KEYNAME_REQUIRE_AUDIENCE=true, KEYNAME_API_URL=https://api.keyname.dev, KEYNAME_CLIENT_ID=knc_-3y7VPz-x-mHHz1kXyMvTBVW, node, dist/bin.js, serve, --hostname, 0.0.0.0, --port, "4097"]
     development:
-      command: [env, COREPACK_HOME=/tmp/corepack, KEYNAME_AUTH_ENABLED=true, KEYNAME_API_URL=https://api.keyname.dev, KEYNAME_CLIENT_ID=knc_-3y7VPz-x-mHHz1kXyMvTBVW, corepack, pnpm, exec, tsx, watch, src/bin.ts, serve, --hostname, 0.0.0.0, --port, "4097"]
+      command: [node, ../../../scripts/deployment/api-secret-runtime.mjs, --, env, COREPACK_HOME=/tmp/corepack, RUE_MANAGED_WORKERS=true, KEYNAME_AUTH_ENABLED=true, KEYNAME_API_URL=https://api.keyname.dev, KEYNAME_CLIENT_ID=knc_-3y7VPz-x-mHHz1kXyMvTBVW, node, ../../../scripts/deployment/require-development-storage.mjs, --, corepack, pnpm, exec, tsx, watch, src/bin.ts, serve, --hostname, 0.0.0.0, --port, "4097"]
       health: /health
     port: 4097
     health: /health
@@ -65,6 +65,7 @@ checks:
     profile: smoke
     inputs: [packages/apps/core, packages/libs/db, packages/libs/trpc, quality]
     timeout: 2m
+    resources: { memory: 1g, cpus: "2" }
   webapp-browser:
     image: ./docker/images/Dockerfile.sandblocks-e2e
     command: [npx, playwright, test, webapp.app.playwright.ts, --config, quality/playwright.config.ts]
@@ -72,6 +73,7 @@ checks:
     profile: smoke
     inputs: [packages/apps/webapp, packages/libs/auth, packages/libs/config, packages/libs/sdk, packages/libs/ui, quality]
     timeout: 2m
+    resources: { memory: 1g, cpus: "2" }
   site-browser:
     image: ./docker/images/Dockerfile.sandblocks-e2e
     command: [npx, playwright, test, site.app.playwright.ts, --config, quality/playwright.config.ts]
@@ -79,6 +81,7 @@ checks:
     profile: smoke
     inputs: [packages/apps/site, packages/libs/config, packages/libs/ui, quality]
     timeout: 2m
+    resources: { memory: 1g, cpus: "2" }
   docs-browser:
     image: ./docker/images/Dockerfile.sandblocks-e2e
     command: [npx, playwright, test, docs.app.playwright.ts, --config, quality/playwright.config.ts]
@@ -86,9 +89,10 @@ checks:
     profile: smoke
     inputs: [packages/apps/docs, packages/libs/config, packages/libs/ui, quality]
     timeout: 2m
+    resources: { memory: 1g, cpus: "2" }
 
 environments:
-  develop:
+  development:
     mode: development
     branches: [develop]
     checkProfile: smoke

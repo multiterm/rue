@@ -93,7 +93,6 @@ export const runCommand: CommandModule<unknown, RunArgs> = {
       await ssePromise.catch(() => {})
     } finally {
       await server.close()
-      server.ctx.db.close()
     }
   },
 }

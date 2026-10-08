@@ -1,0 +1,36 @@
+# Independent database service; never bundle this volume with an API revision.
+services:
+  postgres:
+    image: ${RUE_POSTGRES_IMAGE:?Pin the reviewed PostgreSQL 17 image digest}
+    container_name: ${RUE_POSTGRES_CONTAINER:-rue-postgres17}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rue_admin
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres-password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    command: [postgres, -c, max_connections=64, -c, password_encryption=scram-sha-256]
+    volumes:
+      - type: bind
+        source: ${RUE_POSTGRES_DATA_DIR:?Choose a durable private data directory}
+        target: /var/lib/postgresql/data
+      - type: bind
+        source: ${RUE_POSTGRES_PASSWORD_FILE:?Provision a private administrator password file}
+        target: /run/secrets/postgres-password
+        read_only: true
+    networks: [application]
+    # No published host port. Only the configured application network can connect.
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U rue_admin -d postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    mem_limit: 1g
+    cpus: 1
+    shm_size: 128m
+    labels:
+      io.rue.storage: postgres
+networks:
+  application:
+    external: true
+    name: ${RUE_POSTGRES_NETWORK:?Choose the private application network}

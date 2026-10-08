@@ -8,14 +8,21 @@
     "url": "git+https://github.com/multiterm/rue.git"
   },
   "packageManager": "pnpm@11.4.0",
+  "dependencies": {
+    "@dotlocker/dotlocker": "0.2.12-b.1",
+    "@multiterm/envx": "0.4.1-b.15"
+  },
   "devDependencies": {
+    "@earendil-works/pi-ai": "0.85.1",
+    "@earendil-works/pi-coding-agent": "0.85.1",
     "@multiterm/release": "0.4.1-b.23",
     "@multiterm/rune": "0.4.1-b.17",
     "@playwright/test": "catalog:",
-    "@sandblocks/cli": "0.6.8",
-    "@sandblocks/sdk": "0.6.8",
+    "@sandblocks/cli": "0.8.0",
+    "@sandblocks/sdk": "0.8.0",
     "@types/node": "^25.8.0",
     "@vitest/coverage-v8": "4.1.11",
+    "jiti": "2.7.0",
     "prettier": "^3.8.3",
     "tsx": "^4.22.0",
     "typescript": "^6.0.3",
