@@ -1,5 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
+import {readFileSync} from 'node:fs'
 import {runtimeReleaseManifest,runtimeRepository} from '../scripts/deployment/runtime-release-manifest.mjs'
 const revision='a'.repeat(40),piVersion='0.85.1'
 const image=architecture=>({Id:'sha256:'+('amd64'===architecture?'b':'c').repeat(64),Os:'linux',Size:1024,Architecture:architecture,RepoDigests:[runtimeRepository+'@sha256:'+('amd64'===architecture?'d':'e').repeat(64)],Config:{Labels:{'io.rue.agent-runtime':'1','io.rue.pi-sdk':piVersion,'io.rue.source-revision':revision,'io.rue.filesystem':'3','io.rue.mcp-tools':'1','io.rue.compact':'1','io.rue.codex-oauth':'1'}}})
@@ -32,4 +33,19 @@ test('requires complete, unique Linux native architectures and immutable image I
 test('rejects shell syntax, ranges, branch names and prerelease selectors',()=>{
  for(const piVersion of ['latest','^0.85.1','1.1.0;echo injected','1.1.0-beta'])assert.throws(()=>runtimeReleaseManifest({...input(),piVersion}))
  assert.throws(()=>runtimeReleaseManifest({...input(),revision:'develop'}))
+})
+const source=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8')
+test('runtime image includes status and usage dependencies in its bounded build context',()=>{
+ const docker=source('deploy/worker/agent.Dockerfile'),ignore=source('deploy/worker/agent.Dockerfile.dockerignore')
+ for(const name of ['runtime-info.ts','git-status.ts','usage.ts']){
+  assert.ok(docker.includes('extensions/rue/'+name))
+  assert.ok(ignore.split('\n').includes('!extensions/rue/'+name))
+ }
+})
+test('runtime npm installation retains the workspace affected-version security floors',()=>{
+ const docker=source('deploy/worker/agent.Dockerfile'),workspace=source('pnpm-workspace.yaml')
+ for(const [range,version] of [['undici@>=8.0.0 <8.10.2','8.10.2'],['brace-expansion@>=5.0.0 <5.0.12','5.0.12']]){
+  assert.ok(workspace.includes(`'${range}': ${version}`))
+  assert.ok(docker.includes(`${JSON.stringify(range)}:${JSON.stringify(version)}`))
+ }
 })
